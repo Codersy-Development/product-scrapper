@@ -297,9 +297,9 @@ function getShopifyApp() {
       authPathPrefix: "/auth",
       sessionStorage,
       distribution: AppDistribution.AppStore,
-      future: {
-        expiringOfflineAccessTokens: true, // Enable expiring offline tokens
-      },
+      // future: {
+      //   expiringOfflineAccessTokens: true, // Enable expiring offline tokens
+      // },
       ...(env.SHOP_CUSTOM_DOMAIN
         ? { customShopDomains: [env.SHOP_CUSTOM_DOMAIN] }
         : {}),

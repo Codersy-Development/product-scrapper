@@ -1,20 +1,37 @@
-# Welcome to React Router!
+# Shopify App Starter - Cloudflare Workers + D1
 
-A modern, production-ready template for building full-stack React applications using React Router.
+A free-to-host Shopify App starter template built with Cloudflare Workers, D1 Database, and React Router.
+
+## Why This Template?
+
+**Zero operating costs for new developers!** This template leverages Cloudflare's generous free tier:
+
+- ✅ **Free hosting** on Cloudflare Workers
+- ✅ **Generous free tier limits** - perfect for development and small apps
+- ✅ **Straightforward setup** - get started in minutes
+- ✅ **D1 Database included** - serverless SQL database at no cost
+- ✅ **Built for Shopify** - ready for app development
+
+Perfect for developers building their first Shopify app without worrying about hosting costs!
 
 ## Features
 
-- 🚀 Server-side rendering
+- 🚀 Server-side rendering with React Router
+- 💾 Cloudflare D1 (SQLite) database integration
 - ⚡️ Hot Module Replacement (HMR)
-- 📦 Asset bundling and optimization
-- 🔄 Data loading and mutations
 - 🔒 TypeScript by default
 - 🎉 TailwindCSS for styling
-- 📖 [React Router docs](https://reactrouter.com/)
+- 🌐 Edge deployment with Cloudflare Workers
+
+## Prerequisites
+
+- Node.js 18+ installed
+- A Cloudflare account (free tier available)
+- Basic familiarity with Shopify app development
 
 ## Getting Started
 
-### Installation
+### 1. Installation
 
 Install the dependencies:
 
@@ -22,9 +39,67 @@ Install the dependencies:
 npm install
 ```
 
-### Development
+### 2. D1 Database Setup
 
-Start the development server with HMR:
+#### Create a D1 Database
+
+Create your D1 database using Wrangler:
+
+```bash
+npx wrangler d1 create shopify-app-db
+```
+
+This will output a database ID. Copy the configuration block and add it to your `wrangler.jsonc` file under the `[[d1_databases]]` section.
+
+#### Creating Migrations
+
+To create a new database migration:
+
+```bash
+npx wrangler d1 migrations create shopify-app-db <migration-name>
+```
+
+For example, to create a sessions table:
+
+```bash
+npx wrangler d1 migrations create shopify-app-db create_sessions_table
+```
+
+This creates a new SQL file in the `migrations/` folder. Edit the file to add your SQL:
+
+```sql
+-- migrations/0001_create_sessions_table.sql
+CREATE TABLE IF NOT EXISTS sessions (
+  id TEXT PRIMARY KEY,
+  shop TEXT NOT NULL,
+  state TEXT NOT NULL,
+  isOnline INTEGER NOT NULL DEFAULT 0,
+  scope TEXT,
+  expires INTEGER,
+  accessToken TEXT NOT NULL,
+  userId INTEGER
+);
+
+CREATE INDEX idx_shop ON sessions(shop);
+```
+
+#### Running Migrations
+
+Apply migrations to your local development database:
+
+```bash
+npx wrangler d1 migrations apply shopify-app-db --local
+```
+
+Apply migrations to production:
+
+```bash
+npx wrangler d1 migrations apply shopify-app-db --remote
+```
+
+### 3. Development
+
+Start the development server:
 
 ```bash
 npm run dev
@@ -32,48 +107,78 @@ npm run dev
 
 Your application will be available at `http://localhost:5173`.
 
-## Previewing the Production Build
+### 4. Database Queries in Development
 
-Preview the production build locally:
-
-```bash
-npm run preview
-```
-
-## Building for Production
-
-Create a production build:
+You can execute SQL queries directly during development:
 
 ```bash
-npm run build
+# Local database
+npx wrangler d1 execute shopify-app-db --local --command="SELECT * FROM sessions"
+
+# Production database
+npx wrangler d1 execute shopify-app-db --remote --command="SELECT * FROM sessions"
 ```
 
 ## Deployment
 
-Deployment is done using the Wrangler CLI.
+### Build and Deploy
 
-To build and deploy directly to production:
+Deploy your app to Cloudflare Workers:
 
-```sh
+```bash
 npm run deploy
 ```
 
-To deploy a preview URL:
+This will:
 
-```sh
+1. Build your React application
+2. Deploy to Cloudflare Workers
+3. Output your production URL
+
+### Preview Deployments
+
+Create a preview deployment:
+
+```bash
 npx wrangler versions upload
 ```
 
-You can then promote a version to production after verification or roll it out progressively.
+Promote to production:
 
-```sh
+```bash
 npx wrangler versions deploy
 ```
 
-## Styling
+## Project Structure
 
-This template comes with [Tailwind CSS](https://tailwindcss.com/) already configured for a simple default starting experience. You can use whatever CSS framework you prefer.
+```
+├── app/                    # React Router application
+│   ├── routes/            # Application routes
+│   └── entry.server.tsx   # Server entry point
+├── workers/               # Cloudflare Workers code
+│   └── app.ts            # Worker entry point
+├── migrations/           # D1 database migrations
+├── public/              # Static assets
+└── wrangler.jsonc       # Cloudflare configuration
+```
+
+## Next Steps
+
+- [ ] Set up Shopify Partner account
+- [ ] Configure Shopify app credentials
+- [ ] Implement OAuth flow
+- [ ] Create your first Shopify API integration
+- [ ] Add webhook handlers
+
+## Resources
+
+- [Cloudflare Workers Docs](https://developers.cloudflare.com/workers/)
+- [D1 Database Docs](https://developers.cloudflare.com/d1/)
+- [React Router Docs](https://reactrouter.com/)
+- [Shopify App Development](https://shopify.dev/docs/apps)
 
 ---
 
-Built with ❤️ using React Router.
+**Created by [Mladen Terzic](https://mladenterzic.com)** | **[Codersy](https://codersy.com)** - Shopify Agency
+
+Built with ❤️ for the Shopify developer community

@@ -25,11 +25,18 @@
   "type": "module",
   "scripts": {
     "build": "react-router build",
+    "dev": "shopify app dev",
+    "dev:local": "react-router dev",
     "cf-typegen": "wrangler types",
-    "deploy": "npm run build && wrangler deploy",
-    "dev": "react-router dev",
+    "config:link": "shopify app config link",
+    "config:use": "shopify app config use",
+    "deploy": "shopify app deploy",
+    "deploy:workers": "npm run build && wrangler deploy",
+    "env": "shopify app env",
+    "generate": "shopify app generate",
     "postinstall": "npm run cf-typegen",
     "preview": "npm run build && vite preview",
+    "shopify": "shopify",
     "typecheck": "npm run cf-typegen && react-router typegen && tsc -b"
   },
   "dependencies": {

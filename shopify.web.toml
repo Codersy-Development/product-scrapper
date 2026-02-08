@@ -6,4 +6,4 @@ webhooks_path = "/webhooks/app/uninstalled"
 # Generate TypeScript types from wrangler.jsonc
 predev = "npm run cf-typegen"
 # Apply D1 migrations locally and start dev server
-dev = "npx wrangler d1 migrations apply shopify-app-db --local && npm run dev"
+dev = "npx wrangler d1 migrations apply shopify-app-db --local && npm run dev:local"

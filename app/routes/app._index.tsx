@@ -1,314 +1,185 @@
-import { useEffect } from "react";
-import type {
-  ActionFunctionArgs,
-  HeadersFunction,
-  LoaderFunctionArgs,
-} from "react-router";
-import { useFetcher, useLoaderData } from "react-router";
-import { useAppBridge } from "@shopify/app-bridge-react";
+import type { HeadersFunction, LoaderFunctionArgs } from "react-router";
+import { useLoaderData, Link } from "react-router";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 
 export const loader = async ({ request, context }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
-
-  // Get DB from Cloudflare context (the proper way to access D1 bindings)
   const db = context.cloudflare.env.DB;
-  let dbSession = null;
-  let sessionCount = 0;
-  if (db) {
-    const result = await db
+
+  let templateCount = 0;
+  let batchCount = 0;
+  let totalImported = 0;
+  const recentBatches: any[] = [];
+
+  try {
+    const templateResult = await db
+      .prepare("SELECT COUNT(*) as count FROM prompt_templates WHERE shop = ?")
+      .bind(session.shop)
+      .first();
+    templateCount = (templateResult?.count as number) || 0;
+
+    const batchResult = await db
+      .prepare("SELECT COUNT(*) as count FROM import_batches WHERE shop = ?")
+      .bind(session.shop)
+      .first();
+    batchCount = (batchResult?.count as number) || 0;
+
+    const importedResult = await db
       .prepare(
-        "SELECT id, shop, scope, isOnline, accessToken FROM sessions WHERE shop = ? LIMIT 1",
+        "SELECT COALESCE(SUM(imported_products), 0) as total FROM import_batches WHERE shop = ?",
       )
       .bind(session.shop)
       .first();
-    if (result) {
-      dbSession = {
-        id: result.id as string,
-        shop: result.shop as string,
-        scope: result.scope as string,
-        isOnline: Boolean(result.isOnline),
-        hasAccessToken: Boolean(result.accessToken),
-      };
-    }
+    totalImported = (importedResult?.total as number) || 0;
 
-    const countResult = await db
-      .prepare("SELECT COUNT(*) as count FROM sessions")
-      .first();
-    sessionCount = (countResult?.count as number) ?? 0;
+    const recentResult = await db
+      .prepare(
+        "SELECT * FROM import_batches WHERE shop = ? ORDER BY created_at DESC LIMIT 5",
+      )
+      .bind(session.shop)
+      .all();
+    recentBatches.push(...recentResult.results);
+  } catch {
+    // Tables may not exist yet on first run
   }
 
-  return { shop: session.shop, dbSession, sessionCount };
+  return { shop: session.shop, templateCount, batchCount, totalImported, recentBatches };
 };
 
-export const action = async ({ request }: ActionFunctionArgs) => {
-  const { admin } = await authenticate.admin(request);
-  const color = ["Red", "Orange", "Yellow", "Green"][
-    Math.floor(Math.random() * 4)
-  ];
-  const response = await admin.graphql(
-    `#graphql
-      mutation populateProduct($product: ProductCreateInput!) {
-        productCreate(product: $product) {
-          product {
-            id
-            title
-            handle
-            status
-            variants(first: 10) {
-              edges {
-                node {
-                  id
-                  price
-                  barcode
-                  createdAt
-                }
-              }
-            }
-          }
-        }
-      }`,
-    {
-      variables: {
-        product: {
-          title: `${color} Snowboard`,
-        },
-      },
-    },
-  );
-  const responseJson = await response.json();
-
-  const product = responseJson.data!.productCreate!.product!;
-  const variantId = product.variants.edges[0]!.node!.id!;
-
-  const variantResponse = await admin.graphql(
-    `#graphql
-    mutation shopifyReactRouterTemplateUpdateVariant($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
-      productVariantsBulkUpdate(productId: $productId, variants: $variants) {
-        productVariants {
-          id
-          price
-          barcode
-          createdAt
-        }
-      }
-    }`,
-    {
-      variables: {
-        productId: product.id,
-        variants: [{ id: variantId, price: "100.00" }],
-      },
-    },
-  );
-
-  const variantResponseJson = await variantResponse.json();
-
-  return {
-    product: responseJson!.data!.productCreate!.product,
-    variant:
-      variantResponseJson!.data!.productVariantsBulkUpdate!.productVariants,
-  };
-};
-
-export default function Index() {
-  const fetcher = useFetcher<typeof action>();
-  const loaderData = useLoaderData<typeof loader>();
-
-  const shopify = useAppBridge();
-  const isLoading =
-    ["loading", "submitting"].includes(fetcher.state) &&
-    fetcher.formMethod === "POST";
-
-  useEffect(() => {
-    if (fetcher.data?.product?.id) {
-      shopify.toast.show("Product created");
-    }
-  }, [fetcher.data?.product?.id, shopify]);
-
-  const generateProduct = () => fetcher.submit({}, { method: "POST" });
+export default function Dashboard() {
+  const { shop, templateCount, batchCount, totalImported, recentBatches } =
+    useLoaderData<typeof loader>();
 
   return (
-    <s-page heading="Shopify app template">
-      <s-button slot="primary-action" onClick={generateProduct}>
-        Generate a product
-      </s-button>
-
-      <s-section heading="Congrats on creating a new Shopify app 🎉">
+    <s-page heading="Product Scrapper">
+      <s-section>
         <s-paragraph>
-          This embedded app template uses{" "}
-          <s-link
-            href="https://shopify.dev/docs/apps/tools/app-bridge"
-            target="_blank"
-          >
-            App Bridge
-          </s-link>{" "}
-          interface examples like an{" "}
-          <s-link href="/app/additional">additional page in the app nav</s-link>
-          , as well as an{" "}
-          <s-link
-            href="https://shopify.dev/docs/api/admin-graphql"
-            target="_blank"
-          >
-            Admin GraphQL
-          </s-link>{" "}
-          mutation demo, to provide a starting point for app development.
+          Welcome back! Manage your product imports, optimize content with AI, and keep your store updated.
         </s-paragraph>
       </s-section>
 
-      <s-section heading="D1 Session Data">
-        <s-paragraph>
-          <strong>Shop: </strong>
-          <s-text>{loaderData?.shop ?? "N/A"}</s-text>
-        </s-paragraph>
-        <s-paragraph>
-          <strong>Total sessions in DB: </strong>
-          <s-text>{loaderData?.sessionCount ?? 0}</s-text>
-        </s-paragraph>
-        {loaderData?.dbSession ? (
-          <s-box
-            padding="base"
-            borderWidth="base"
-            borderRadius="base"
-            background="subdued"
-          >
-            <pre style={{ margin: 0 }}>
-              <code>{JSON.stringify(loaderData.dbSession, null, 2)}</code>
-            </pre>
-          </s-box>
-        ) : (
-          <s-paragraph>
-            <s-text tone="critical">
-              No session found in D1 database. Session storage may not be
-              persisting correctly.
-            </s-text>
-          </s-paragraph>
-        )}
-      </s-section>
-      <s-section heading="Get started with products">
-        <s-paragraph>
-          Generate a product with GraphQL and get the JSON output for that
-          product. Learn more about the{" "}
-          <s-link
-            href="https://shopify.dev/docs/api/admin-graphql/latest/mutations/productCreate"
-            target="_blank"
-          >
-            productCreate
-          </s-link>{" "}
-          mutation in our API references.
-        </s-paragraph>
+      <s-section heading="Quick Actions">
         <s-stack direction="inline" gap="base">
-          <s-button
-            onClick={generateProduct}
-            {...(isLoading ? { loading: true } : {})}
-          >
-            Generate a product
-          </s-button>
-          {fetcher.data?.product && (
-            <s-button
-              onClick={() => {
-                shopify.intents.invoke?.("edit:shopify/Product", {
-                  value: fetcher.data?.product?.id,
-                });
-              }}
-              target="_blank"
-              variant="tertiary"
+          <Link to="/app/import" style={{ textDecoration: "none", flex: 1 }}>
+            <s-box
+              padding="base"
+              borderWidth="base"
+              borderRadius="base"
+              style={{ cursor: "pointer", textAlign: "center" }}
             >
-              Edit product
-            </s-button>
-          )}
+              <s-stack direction="block" gap="tight" align="center">
+                <s-heading>Import Products</s-heading>
+                <s-paragraph>
+                  <s-text tone="subdued">Scrape products from external Shopify stores</s-text>
+                </s-paragraph>
+              </s-stack>
+            </s-box>
+          </Link>
+          <Link to="/app/optimize" style={{ textDecoration: "none", flex: 1 }}>
+            <s-box
+              padding="base"
+              borderWidth="base"
+              borderRadius="base"
+              style={{ cursor: "pointer", textAlign: "center" }}
+            >
+              <s-stack direction="block" gap="tight" align="center">
+                <s-heading>Optimize Products</s-heading>
+                <s-paragraph>
+                  <s-text tone="subdued">
+                    Enhance existing products with AI-optimized content
+                  </s-text>
+                </s-paragraph>
+              </s-stack>
+            </s-box>
+          </Link>
+          <Link to="/app/templates" style={{ textDecoration: "none", flex: 1 }}>
+            <s-box
+              padding="base"
+              borderWidth="base"
+              borderRadius="base"
+              style={{ cursor: "pointer", textAlign: "center" }}
+            >
+              <s-stack direction="block" gap="tight" align="center">
+                <s-heading>Templates</s-heading>
+                <s-paragraph>
+                  <s-text tone="subdued">Create and manage prompt templates</s-text>
+                </s-paragraph>
+              </s-stack>
+            </s-box>
+          </Link>
         </s-stack>
-        {fetcher.data?.product && (
-          <s-section heading="productCreate mutation">
-            <s-stack direction="block" gap="base">
-              <s-box
-                padding="base"
-                borderWidth="base"
-                borderRadius="base"
-                background="subdued"
-              >
-                <pre style={{ margin: 0 }}>
-                  <code>{JSON.stringify(fetcher.data.product, null, 2)}</code>
-                </pre>
-              </s-box>
-
-              <s-heading>productVariantsBulkUpdate mutation</s-heading>
-              <s-box
-                padding="base"
-                borderWidth="base"
-                borderRadius="base"
-                background="subdued"
-              >
-                <pre style={{ margin: 0 }}>
-                  <code>{JSON.stringify(fetcher.data.variant, null, 2)}</code>
-                </pre>
-              </s-box>
-            </s-stack>
-          </s-section>
-        )}
       </s-section>
 
-      <s-section slot="aside" heading="App template specs">
+      <s-section heading="Overview">
+        <s-stack direction="inline" gap="base">
+          <s-box padding="base" borderWidth="base" borderRadius="base" style={{ flex: 1, textAlign: "center" }}>
+            <s-heading>{totalImported}</s-heading>
+            <s-text tone="subdued">Products Imported</s-text>
+          </s-box>
+          <s-box padding="base" borderWidth="base" borderRadius="base" style={{ flex: 1, textAlign: "center" }}>
+            <s-heading>{batchCount}</s-heading>
+            <s-text tone="subdued">Import Batches</s-text>
+          </s-box>
+          <s-box padding="base" borderWidth="base" borderRadius="base" style={{ flex: 1, textAlign: "center" }}>
+            <s-heading>{templateCount}</s-heading>
+            <s-text tone="subdued">Templates</s-text>
+          </s-box>
+        </s-stack>
+      </s-section>
+
+      {recentBatches.length > 0 && (
+        <s-section heading="Recent Imports">
+          <s-stack direction="block" gap="tight">
+            {recentBatches.map((batch: any) => (
+              <s-box key={batch.id} padding="tight" borderWidth="base" borderRadius="base">
+                <s-stack direction="inline" gap="base" align="center">
+                  <span
+                    style={{
+                      width: "8px",
+                      height: "8px",
+                      borderRadius: "50%",
+                      backgroundColor:
+                        batch.status === "completed"
+                          ? "var(--p-color-bg-fill-success)"
+                          : batch.status === "failed"
+                            ? "var(--p-color-bg-fill-critical)"
+                            : "var(--p-color-bg-fill-caution)",
+                    }}
+                  />
+                  <s-text fontWeight="semibold">
+                    {batch.imported_products}/{batch.total_products} products
+                  </s-text>
+                  <s-text tone="subdued">{batch.status}</s-text>
+                  <s-text tone="subdued" variant="bodySm">
+                    {new Date(batch.created_at * 1000).toLocaleDateString()}
+                  </s-text>
+                </s-stack>
+              </s-box>
+            ))}
+          </s-stack>
+        </s-section>
+      )}
+
+      <s-section slot="aside" heading="Store">
         <s-paragraph>
-          <s-text>Framework: </s-text>
-          <s-link href="https://reactrouter.com/" target="_blank">
-            React Router
-          </s-link>
+          <s-text fontWeight="semibold">Connected Store:</s-text>
         </s-paragraph>
         <s-paragraph>
-          <s-text>Interface: </s-text>
-          <s-link
-            href="https://shopify.dev/docs/api/app-home/using-polaris-components"
-            target="_blank"
-          >
-            Polaris web components
-          </s-link>
-        </s-paragraph>
-        <s-paragraph>
-          <s-text>API: </s-text>
-          <s-link
-            href="https://shopify.dev/docs/api/admin-graphql"
-            target="_blank"
-          >
-            GraphQL
-          </s-link>
-        </s-paragraph>
-        <s-paragraph>
-          <s-text>Database: </s-text>
-          <s-link href="https://developers.cloudflare.com/d1/" target="_blank">
-            Cloudflare D1
-          </s-link>
-        </s-paragraph>
-        <s-paragraph>
-          <s-text>Hosting: </s-text>
-          <s-link
-            href="https://developers.cloudflare.com/workers/"
-            target="_blank"
-          >
-            Cloudflare Workers
-          </s-link>
+          <s-text>{shop}</s-text>
         </s-paragraph>
       </s-section>
 
-      <s-section slot="aside" heading="Next steps">
+      <s-section slot="aside" heading="Getting Started">
         <s-unordered-list>
           <s-list-item>
-            Build an{" "}
-            <s-link
-              href="https://shopify.dev/docs/apps/getting-started/build-app-example"
-              target="_blank"
-            >
-              example app
-            </s-link>
+            <s-link href="/app/settings">Configure your store settings</s-link>
           </s-list-item>
           <s-list-item>
-            Explore Shopify&apos;s API with{" "}
-            <s-link
-              href="https://shopify.dev/docs/apps/tools/graphiql-admin-api"
-              target="_blank"
-            >
-              GraphiQL
-            </s-link>
+            <s-link href="/app/templates">Create prompt templates</s-link>
+          </s-list-item>
+          <s-list-item>
+            <s-link href="/app/import">Import your first products</s-link>
           </s-list-item>
         </s-unordered-list>
       </s-section>

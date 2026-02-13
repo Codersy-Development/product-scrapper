@@ -9,6 +9,7 @@
   "main": "./workers/app.ts",
   "vars": {
     "VALUE_FROM_CLOUDFLARE": "Hello from Cloudflare",
+    "GEMINI_API_KEY": "AIzaSyATYx3F8cezyI6xw3p1l912IF3oAqgaHgw",
   },
   "observability": {
     "enabled": true,

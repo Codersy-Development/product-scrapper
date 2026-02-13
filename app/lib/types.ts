@@ -100,6 +100,29 @@ export interface UploadResult {
   total: number;
 }
 
+export interface ImageGenerationRequest {
+  productId: string;
+  productTitle: string;
+  existingImageUrl?: string;
+  mode: "generate" | "enhance";
+  prompt: string;
+  style: "product-only" | "lifestyle" | "white-background" | "custom";
+}
+
+export interface GeneratedImage {
+  base64Data: string;
+  mimeType: string;
+  altText: string;
+  prompt: string;
+}
+
+export interface ImageGenerationResult {
+  productId: string;
+  productTitle: string;
+  images: GeneratedImage[];
+  error?: string;
+}
+
 export const DEFAULT_NEGATIVE_WORDS = [
   "Shipping",
   "Payment",

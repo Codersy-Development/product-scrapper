@@ -99,23 +99,52 @@ export default function Templates() {
             <s-text-field
               label="Template Name"
               value={name}
-              onInput={(e: any) => setName(e.target.value)}
+              onChange={(e: any) => setName(e.target.value)}
               placeholder="e.g., General Store SEO"
             />
-            <s-text-field
-              label="Title Optimization Prompt"
-              value={titlePrompt}
-              onInput={(e: any) => setTitlePrompt(e.target.value)}
-              multiline
-              placeholder="e.g., Generate ONE high-converting, keyword-optimized, Google-compliant product title for a general store..."
-            />
-            <s-text-field
-              label="Description Optimization Prompt"
-              value={descriptionPrompt}
-              onInput={(e: any) => setDescriptionPrompt(e.target.value)}
-              multiline
-              placeholder="e.g., Write a compelling, SEO-optimized product description with HTML formatting..."
-            />
+
+            <div>
+              <label style={{ display: "block", marginBottom: "4px", fontWeight: "600" }}>
+                Title Optimization Prompt
+              </label>
+              <textarea
+                value={titlePrompt}
+                onChange={(e) => setTitlePrompt(e.target.value)}
+                placeholder="e.g., Generate ONE high-converting, keyword-optimized, Google-compliant product title for a general store..."
+                rows={6}
+                style={{
+                  width: "100%",
+                  padding: "8px",
+                  border: "1px solid #c9cccf",
+                  borderRadius: "4px",
+                  fontFamily: "inherit",
+                  fontSize: "14px",
+                  resize: "vertical"
+                }}
+              />
+            </div>
+
+            <div>
+              <label style={{ display: "block", marginBottom: "4px", fontWeight: "600" }}>
+                Description Optimization Prompt
+              </label>
+              <textarea
+                value={descriptionPrompt}
+                onChange={(e) => setDescriptionPrompt(e.target.value)}
+                placeholder="e.g., Write a compelling, SEO-optimized product description with HTML formatting..."
+                rows={6}
+                style={{
+                  width: "100%",
+                  padding: "8px",
+                  border: "1px solid #c9cccf",
+                  borderRadius: "4px",
+                  fontFamily: "inherit",
+                  fontSize: "14px",
+                  resize: "vertical"
+                }}
+              />
+            </div>
+
             <s-button onClick={handleCreate} variant="primary" {...(isSubmitting ? { loading: true } : {})}>
               Save Template
             </s-button>

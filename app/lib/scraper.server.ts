@@ -91,7 +91,17 @@ export function deduplicateProducts(products: ScrapedProduct[]): ScrapedProduct[
 }
 
 export async function scrapeProductUrl(store: string, handle: string): Promise<ScrapedProduct> {
-  const response = await fetch(`https://${store}/products/${handle}.json`);
+  const response = await fetch(`https://${store}/products/${handle}.json`, {
+    headers: {
+      "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+      "Accept": "application/json, text/plain, */*",
+      "Accept-Language": "en-US,en;q=0.9",
+      "Accept-Encoding": "gzip, deflate, br",
+      "Referer": `https://${store}/`,
+      "Cache-Control": "no-cache",
+      "Pragma": "no-cache",
+    },
+  });
   if (!response.ok) {
     throw new Error(`HTTP ${response.status} fetching product ${handle} from ${store}`);
   }
@@ -105,7 +115,18 @@ export async function scrapeCollectionUrl(store: string, handle: string): Promis
 
   while (true) {
     const response = await fetch(
-      `https://${store}/collections/${handle}/products.json?limit=250&page=${page}`
+      `https://${store}/collections/${handle}/products.json?limit=250&page=${page}`,
+      {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+          "Accept": "application/json, text/plain, */*",
+          "Accept-Language": "en-US,en;q=0.9",
+          "Accept-Encoding": "gzip, deflate, br",
+          "Referer": `https://${store}/collections/${handle}`,
+          "Cache-Control": "no-cache",
+          "Pragma": "no-cache",
+        },
+      }
     );
     if (!response.ok) {
       throw new Error(`HTTP ${response.status} fetching collection ${handle} from ${store} (page ${page})`);

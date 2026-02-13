@@ -60,54 +60,99 @@ export default function Dashboard() {
       </s-section>
 
       <s-section heading="Quick Actions">
-        <s-stack direction="inline" gap="base">
-          <Link to="/app/import" style={{ textDecoration: "none", flex: 1 }}>
-            <s-box
-              padding="base"
-              borderWidth="base"
-              borderRadius="base"
-              style={{ cursor: "pointer", textAlign: "center" }}
-            >
-              <s-stack direction="block" gap="tight" align="center">
-                <s-heading>Import Products</s-heading>
-                <s-paragraph>
-                  <s-text tone="subdued">Scrape products from external Shopify stores</s-text>
-                </s-paragraph>
-              </s-stack>
-            </s-box>
-          </Link>
-          <Link to="/app/optimize" style={{ textDecoration: "none", flex: 1 }}>
-            <s-box
-              padding="base"
-              borderWidth="base"
-              borderRadius="base"
-              style={{ cursor: "pointer", textAlign: "center" }}
-            >
-              <s-stack direction="block" gap="tight" align="center">
-                <s-heading>Optimize Products</s-heading>
-                <s-paragraph>
-                  <s-text tone="subdued">
-                    Enhance existing products with AI-optimized content
-                  </s-text>
-                </s-paragraph>
-              </s-stack>
-            </s-box>
-          </Link>
-          <Link to="/app/templates" style={{ textDecoration: "none", flex: 1 }}>
-            <s-box
-              padding="base"
-              borderWidth="base"
-              borderRadius="base"
-              style={{ cursor: "pointer", textAlign: "center" }}
-            >
-              <s-stack direction="block" gap="tight" align="center">
-                <s-heading>Templates</s-heading>
-                <s-paragraph>
-                  <s-text tone="subdued">Create and manage prompt templates</s-text>
-                </s-paragraph>
-              </s-stack>
-            </s-box>
-          </Link>
+        <s-stack direction="block" gap="base">
+          {/* First Row */}
+          <s-stack direction="inline" gap="base">
+            <Link to="/app/import" style={{ textDecoration: "none", flex: 1 }}>
+              <s-box
+                padding="base"
+                borderWidth="base"
+                borderRadius="base"
+                style={{
+                  cursor: "pointer",
+                  textAlign: "center",
+                  transition: "all 0.2s ease",
+                  backgroundColor: "var(--p-color-bg-surface-hover)"
+                }}
+              >
+                <s-stack direction="block" gap="tight" align="center">
+                  <div style={{ fontSize: "48px", lineHeight: "1" }}>📦</div>
+                  <s-heading>Import Products</s-heading>
+                  <s-paragraph>
+                    <s-text tone="subdued">Scrape products from external Shopify stores</s-text>
+                  </s-paragraph>
+                </s-stack>
+              </s-box>
+            </Link>
+            <Link to="/app/optimize" style={{ textDecoration: "none", flex: 1 }}>
+              <s-box
+                padding="base"
+                borderWidth="base"
+                borderRadius="base"
+                style={{
+                  cursor: "pointer",
+                  textAlign: "center",
+                  transition: "all 0.2s ease",
+                  backgroundColor: "var(--p-color-bg-surface-hover)"
+                }}
+              >
+                <s-stack direction="block" gap="tight" align="center">
+                  <div style={{ fontSize: "48px", lineHeight: "1" }}>✨</div>
+                  <s-heading>Optimize Products</s-heading>
+                  <s-paragraph>
+                    <s-text tone="subdued">
+                      Enhance existing products with AI-optimized content
+                    </s-text>
+                  </s-paragraph>
+                </s-stack>
+              </s-box>
+            </Link>
+          </s-stack>
+          {/* Second Row */}
+          <s-stack direction="inline" gap="base">
+            <Link to="/app/templates" style={{ textDecoration: "none", flex: 1 }}>
+              <s-box
+                padding="base"
+                borderWidth="base"
+                borderRadius="base"
+                style={{
+                  cursor: "pointer",
+                  textAlign: "center",
+                  transition: "all 0.2s ease",
+                  backgroundColor: "var(--p-color-bg-surface-hover)"
+                }}
+              >
+                <s-stack direction="block" gap="tight" align="center">
+                  <div style={{ fontSize: "48px", lineHeight: "1" }}>📝</div>
+                  <s-heading>Templates</s-heading>
+                  <s-paragraph>
+                    <s-text tone="subdued">Create and manage prompt templates</s-text>
+                  </s-paragraph>
+                </s-stack>
+              </s-box>
+            </Link>
+            <Link to="/app/images" style={{ textDecoration: "none", flex: 1 }}>
+              <s-box
+                padding="base"
+                borderWidth="base"
+                borderRadius="base"
+                style={{
+                  cursor: "pointer",
+                  textAlign: "center",
+                  transition: "all 0.2s ease",
+                  backgroundColor: "var(--p-color-bg-surface-hover)"
+                }}
+              >
+                <s-stack direction="block" gap="tight" align="center">
+                  <div style={{ fontSize: "48px", lineHeight: "1" }}>🖼️</div>
+                  <s-heading>AI Images</s-heading>
+                  <s-paragraph>
+                    <s-text tone="subdued">Generate and enhance product images with AI</s-text>
+                  </s-paragraph>
+                </s-stack>
+              </s-box>
+            </Link>
+          </s-stack>
         </s-stack>
       </s-section>
 
@@ -134,23 +179,20 @@ export default function Dashboard() {
             {recentBatches.map((batch: any) => (
               <s-box key={batch.id} padding="tight" borderWidth="base" borderRadius="base">
                 <s-stack direction="inline" gap="base" align="center">
-                  <span
-                    style={{
-                      width: "8px",
-                      height: "8px",
-                      borderRadius: "50%",
-                      backgroundColor:
-                        batch.status === "completed"
-                          ? "var(--p-color-bg-fill-success)"
-                          : batch.status === "failed"
-                            ? "var(--p-color-bg-fill-critical)"
-                            : "var(--p-color-bg-fill-caution)",
-                    }}
-                  />
+                  <s-badge
+                    tone={
+                      batch.status === "completed"
+                        ? "success"
+                        : batch.status === "failed"
+                          ? "critical"
+                          : "warning"
+                    }
+                  >
+                    {batch.status}
+                  </s-badge>
                   <s-text fontWeight="semibold">
                     {batch.imported_products}/{batch.total_products} products
                   </s-text>
-                  <s-text tone="subdued">{batch.status}</s-text>
                   <s-text tone="subdued" variant="bodySm">
                     {new Date(batch.created_at * 1000).toLocaleDateString()}
                   </s-text>

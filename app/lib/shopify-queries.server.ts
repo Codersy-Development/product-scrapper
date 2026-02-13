@@ -194,3 +194,42 @@ export const PUBLISHABLE_PUBLISH_MUTATION = `#graphql
     }
   }
 `;
+
+export const STAGED_UPLOADS_CREATE_MUTATION = `#graphql
+  mutation stagedUploadsCreate($input: [StagedUploadInput!]!) {
+    stagedUploadsCreate(input: $input) {
+      stagedTargets {
+        url
+        resourceUrl
+        parameters {
+          name
+          value
+        }
+      }
+      userErrors {
+        field
+        message
+      }
+    }
+  }
+`;
+
+export const PRODUCT_CREATE_MEDIA_MUTATION = `#graphql
+  mutation productCreateMedia($productId: ID!, $media: [CreateMediaInput!]!) {
+    productCreateMedia(productId: $productId, media: $media) {
+      media {
+        ... on MediaImage {
+          id
+          image {
+            url
+            altText
+          }
+        }
+      }
+      mediaUserErrors {
+        field
+        message
+      }
+    }
+  }
+`;

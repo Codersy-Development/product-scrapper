@@ -5,7 +5,12 @@ import { useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { COLLECTIONS_QUERY } from "../lib/shopify-queries.server";
-import type { ScrapedProduct, PromptTemplate, StoreSettings, ScrapeResult } from "../lib/types";
+import type {
+  ScrapedProduct,
+  PromptTemplate,
+  StoreSettings,
+  ScrapeResult,
+} from "../lib/types";
 import {
   DEFAULT_STORE_SETTINGS,
   PRICE_ROUNDING_OPTIONS,
@@ -75,21 +80,32 @@ export const loader = async ({ request, context }: LoaderFunctionArgs) => {
 
 type ImportStep = "input" | "select" | "settings" | "uploading";
 
+const STEP_LABELS = ["Input", "Select", "Settings", "Upload"];
+const STEP_KEYS: ImportStep[] = ["input", "select", "settings", "uploading"];
+
 export default function ImportProducts() {
-  const { templates, settings: defaultSettings, collections, negativeWords } =
-    useLoaderData<typeof loader>();
+  const {
+    templates,
+    settings: defaultSettings,
+    collections,
+    negativeWords,
+  } = useLoaderData<typeof loader>();
   const shopify = useAppBridge();
 
   // Step management
   const [step, setStep] = useState<ImportStep>("input");
 
   // Step 1 - Input
-  const [importType, setImportType] = useState<"collection" | "product">("collection");
+  const [importType, setImportType] = useState<"collection" | "product">(
+    "collection",
+  );
   const [urls, setUrls] = useState("");
 
   // Scraped products
   const [products, setProducts] = useState<ScrapedProduct[]>([]);
-  const [scrapeErrors, setScrapeErrors] = useState<Array<{ url: string; error: string }>>([]);
+  const [scrapeErrors, setScrapeErrors] = useState<
+    Array<{ url: string; error: string }>
+  >([]);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
   // Filters
@@ -104,19 +120,41 @@ export default function ImportProducts() {
   const [vendor, setVendor] = useState(defaultSettings.vendor);
   const [language, setLanguage] = useState(defaultSettings.language);
   const [region, setRegion] = useState(defaultSettings.region);
-  const [defaultInventory, setDefaultInventory] = useState(String(defaultSettings.default_inventory));
-  const [trackInventory, setTrackInventory] = useState(defaultSettings.track_inventory);
-  const [retailMultiplier, setRetailMultiplier] = useState(String(defaultSettings.retail_price_multiplier));
-  const [compareAtMultiplier, setCompareAtMultiplier] = useState(String(defaultSettings.compare_at_price_multiplier));
-  const [retailManual, setRetailManual] = useState(defaultSettings.retail_price_manual);
-  const [compareAtManual, setCompareAtManual] = useState(defaultSettings.compare_at_price_manual);
-  const [priceRounding, setPriceRounding] = useState(defaultSettings.price_rounding);
-  const [productStatus, setProductStatus] = useState(defaultSettings.product_status);
-  const [salesChannels, setSalesChannels] = useState(defaultSettings.sales_channels);
+  const [defaultInventory, setDefaultInventory] = useState(
+    String(defaultSettings.default_inventory),
+  );
+  const [trackInventory, setTrackInventory] = useState(
+    defaultSettings.track_inventory,
+  );
+  const [retailMultiplier, setRetailMultiplier] = useState(
+    String(defaultSettings.retail_price_multiplier),
+  );
+  const [compareAtMultiplier, setCompareAtMultiplier] = useState(
+    String(defaultSettings.compare_at_price_multiplier),
+  );
+  const [retailManual, setRetailManual] = useState(
+    defaultSettings.retail_price_manual,
+  );
+  const [compareAtManual, setCompareAtManual] = useState(
+    defaultSettings.compare_at_price_manual,
+  );
+  const [priceRounding, setPriceRounding] = useState(
+    defaultSettings.price_rounding,
+  );
+  const [productStatus, setProductStatus] = useState(
+    defaultSettings.product_status,
+  );
+  const [salesChannels, setSalesChannels] = useState(
+    defaultSettings.sales_channels,
+  );
   const [vatEnabled, setVatEnabled] = useState(defaultSettings.vat_enabled);
   const [altText, setAltText] = useState(defaultSettings.alt_text_optimization);
-  const [variantPricing, setVariantPricing] = useState(defaultSettings.variant_pricing);
-  const [inventoryPolicy, setInventoryPolicy] = useState(defaultSettings.inventory_policy);
+  const [variantPricing, setVariantPricing] = useState(
+    defaultSettings.variant_pricing,
+  );
+  const [inventoryPolicy, setInventoryPolicy] = useState(
+    defaultSettings.inventory_policy,
+  );
 
   // Fetchers
   const scrapeFetcher = useFetcher<ScrapeResult>();
@@ -126,6 +164,20 @@ export default function ImportProducts() {
   const isScrapingLoading = scrapeFetcher.state !== "idle";
   const isOptimizing = optimizeFetcher.state !== "idle";
   const isUploading = uploadFetcher.state !== "idle";
+
+  // Set default template on load (Fashion template if available)
+  useEffect(() => {
+    if (templates.length > 0 && !titleTemplateId && !descTemplateId) {
+      // Look for a fashion template or use the first one
+      const fashionTemplate = templates.find(t =>
+        t.name.toLowerCase().includes('fashion') ||
+        t.name.toLowerCase().includes('default')
+      );
+      const defaultTemplate = fashionTemplate || templates[0];
+      setTitleTemplateId(String(defaultTemplate.id));
+      setDescTemplateId(String(defaultTemplate.id));
+    }
+  }, [templates]);
 
   // Handle scrape response
   useEffect(() => {
@@ -167,7 +219,9 @@ export default function ImportProducts() {
       if (data.imported !== undefined) {
         shopify.toast.show(`Imported ${data.imported}/${data.total} products`);
         if (data.failed > 0) {
-          shopify.toast.show(`${data.failed} products failed`, { isError: true });
+          shopify.toast.show(`${data.failed} products failed`, {
+            isError: true,
+          });
         }
         setStep("input");
         setProducts([]);
@@ -179,7 +233,8 @@ export default function ImportProducts() {
   // Filtered products
   const filteredProducts = useMemo(() => {
     return products.filter((p) => {
-      if (search && !p.title.toLowerCase().includes(search.toLowerCase())) return false;
+      if (search && !p.title.toLowerCase().includes(search.toLowerCase()))
+        return false;
       if (minPrice || maxPrice) {
         const price = parseFloat(p.variants[0]?.price || "0");
         if (minPrice && price < parseFloat(minPrice)) return false;
@@ -217,12 +272,16 @@ export default function ImportProducts() {
   };
 
   const handleOptimize = () => {
-    const selectedProducts = products.filter((p) => selectedIds.has(p.externalId));
+    const selectedProducts = products.filter((p) =>
+      selectedIds.has(p.externalId),
+    );
     optimizeFetcher.submit(
       JSON.stringify({
         products: selectedProducts,
         titleTemplateId: titleTemplateId ? Number(titleTemplateId) : undefined,
-        descriptionTemplateId: descTemplateId ? Number(descTemplateId) : undefined,
+        descriptionTemplateId: descTemplateId
+          ? Number(descTemplateId)
+          : undefined,
         optimizeAltText: altText,
       }),
       {
@@ -234,7 +293,9 @@ export default function ImportProducts() {
   };
 
   const handleUpload = () => {
-    const selectedProducts = products.filter((p) => selectedIds.has(p.externalId));
+    const selectedProducts = products.filter((p) =>
+      selectedIds.has(p.externalId),
+    );
     setStep("uploading");
     uploadFetcher.submit(
       JSON.stringify({
@@ -269,13 +330,52 @@ export default function ImportProducts() {
     );
   };
 
+  const stepIndex = STEP_KEYS.indexOf(step);
+
   return (
     <s-page heading="Import from Shopify Store">
+      {/* Step Indicator */}
+      <s-section>
+        <s-stack direction="inline" gap="base" align="center">
+          {STEP_LABELS.map((label, idx) => {
+            const isActive = idx === stepIndex;
+            const isCompleted = idx < stepIndex;
+            return (
+              <s-stack
+                key={label}
+                direction="inline"
+                gap="tight"
+                align="center"
+              >
+                <s-badge
+                  tone={isActive ? "info" : isCompleted ? "success" : undefined}
+                >
+                  {isCompleted ? "\u2713" : String(idx + 1)}
+                </s-badge>
+                <s-text
+                  fontWeight={isActive ? "semibold" : "regular"}
+                  tone={isActive ? undefined : "subdued"}
+                >
+                  {label}
+                </s-text>
+                {idx < STEP_LABELS.length - 1 && (
+                  <s-text tone="subdued">&mdash;</s-text>
+                )}
+              </s-stack>
+            );
+          })}
+        </s-stack>
+      </s-section>
+
       {step === "input" && (
         <>
           <s-section>
             <s-paragraph>Choose how you want to import products</s-paragraph>
-            <s-stack direction="inline" gap="base" style={{ marginTop: "12px" }}>
+            <s-stack
+              direction="inline"
+              gap="base"
+              style={{ marginTop: "12px" }}
+            >
               <div
                 onClick={() => setImportType("collection")}
                 style={{
@@ -283,7 +383,10 @@ export default function ImportProducts() {
                   padding: "16px",
                   borderRadius: "12px",
                   border: `2px solid ${importType === "collection" ? "var(--p-color-border-interactive)" : "var(--p-color-border)"}`,
-                  backgroundColor: importType === "collection" ? "var(--p-color-bg-surface-selected)" : "var(--p-color-bg-surface)",
+                  backgroundColor:
+                    importType === "collection"
+                      ? "var(--p-color-bg-surface-selected)"
+                      : "var(--p-color-bg-surface)",
                   cursor: "pointer",
                 }}
               >
@@ -301,7 +404,10 @@ export default function ImportProducts() {
                   padding: "16px",
                   borderRadius: "12px",
                   border: `2px solid ${importType === "product" ? "var(--p-color-border-interactive)" : "var(--p-color-border)"}`,
-                  backgroundColor: importType === "product" ? "var(--p-color-bg-surface-selected)" : "var(--p-color-bg-surface)",
+                  backgroundColor:
+                    importType === "product"
+                      ? "var(--p-color-bg-surface-selected)"
+                      : "var(--p-color-bg-surface)",
                   cursor: "pointer",
                 }}
               >
@@ -317,20 +423,38 @@ export default function ImportProducts() {
 
           <s-section>
             <s-stack direction="block" gap="base">
-              <s-text-field
-                label={importType === "collection" ? "Collection URL" : "Product URLs (one per line)"}
-                value={urls}
-                onInput={(e: any) => setUrls(e.target.value)}
-                placeholder={
-                  importType === "collection"
-                    ? "https://store.myshopify.com/collections/collection-name"
-                    : "https://store.myshopify.com/products/product-handle"
-                }
-                multiline={importType === "product"}
-              />
+              {importType === "collection" ? (
+                <s-text-field
+                  label="Collection URL"
+                  value={urls}
+                  onInput={(e: any) => setUrls(e.target.value)}
+                  placeholder="https://store.myshopify.com/collections/collection-name"
+                />
+              ) : (
+                <div>
+                  <label style={{ display: "block", marginBottom: "4px", fontWeight: "600" }}>
+                    Product URLs (one per line)
+                  </label>
+                  <textarea
+                    value={urls}
+                    onChange={(e) => setUrls(e.target.value)}
+                    placeholder="https://store.myshopify.com/products/product-handle&#10;https://store.myshopify.com/products/another-product&#10;https://store.myshopify.com/products/third-product"
+                    rows={6}
+                    style={{
+                      width: "100%",
+                      padding: "8px",
+                      border: "1px solid #c9cccf",
+                      borderRadius: "4px",
+                      fontFamily: "inherit",
+                      fontSize: "14px",
+                      resize: "vertical"
+                    }}
+                  />
+                </div>
+              )}
 
-              <s-box padding="base" background="subdued" borderRadius="base">
-                <s-text tone="caution" fontWeight="semibold">Make sure:</s-text>
+              <s-banner tone="info">
+                <s-text fontWeight="semibold">Make sure:</s-text>
                 <s-unordered-list>
                   <s-list-item>URL must be from a Shopify store</s-list-item>
                   <s-list-item>
@@ -343,9 +467,11 @@ export default function ImportProducts() {
                       ? "This will import all products from the collection"
                       : "Separate multiple URLs with new lines"}
                   </s-list-item>
-                  <s-list-item>Duplicate URLs with different parameters will be merged</s-list-item>
+                  <s-list-item>
+                    Duplicate URLs with different parameters will be merged
+                  </s-list-item>
                 </s-unordered-list>
-              </s-box>
+              </s-banner>
 
               <s-button
                 onClick={handleScrape}
@@ -356,14 +482,18 @@ export default function ImportProducts() {
               </s-button>
 
               {scrapeErrors.length > 0 && (
-                <s-box padding="base" background="critical-subdued" borderRadius="base">
-                  <s-text tone="critical" fontWeight="semibold">Errors:</s-text>
-                  {scrapeErrors.map((err, i) => (
-                    <s-paragraph key={i}>
-                      <s-text tone="critical">{err.url}: {err.error}</s-text>
-                    </s-paragraph>
-                  ))}
-                </s-box>
+                <s-banner tone="critical">
+                  <s-text fontWeight="semibold">
+                    Errors occurred during import:
+                  </s-text>
+                  <s-unordered-list>
+                    {scrapeErrors.map((err, i) => (
+                      <s-list-item key={i}>
+                        {err.url}: {err.error}
+                      </s-list-item>
+                    ))}
+                  </s-unordered-list>
+                </s-banner>
               )}
             </s-stack>
           </s-section>
@@ -383,45 +513,72 @@ export default function ImportProducts() {
           <s-section>
             <s-stack direction="block" gap="base">
               <s-stack direction="inline" gap="base" align="center">
-                <s-heading>
-                  {products.length} Products Found{" "}
-                  <s-text tone="subdued">({totalVariants} total variants)</s-text>
-                </s-heading>
+                <s-heading>{products.length} Products Found</s-heading>
+                <s-badge>{totalVariants} variants</s-badge>
               </s-stack>
 
               <s-stack direction="inline" gap="base" align="center">
-                <s-text>Selected: {selectedIds.size} products</s-text>
-                <s-button onClick={selectAll} variant="tertiary">Select All</s-button>
-                <s-button onClick={deselectAll} variant="tertiary">Deselect All</s-button>
+                <s-badge tone="info">{selectedIds.size} selected</s-badge>
+                <s-button onClick={selectAll} variant="tertiary">
+                  Select All
+                </s-button>
+                <s-button onClick={deselectAll} variant="tertiary">
+                  Deselect All
+                </s-button>
               </s-stack>
 
               {/* Filters */}
-              <s-stack direction="inline" gap="tight" align="end">
-                <div style={{ flex: 1 }}>
-                  <s-text-field
-                    label=""
-                    value={search}
-                    onInput={(e: any) => setSearch(e.target.value)}
-                    placeholder="Search products..."
-                  />
-                </div>
-                <s-text-field
-                  label=""
-                  type="number"
-                  value={minPrice}
-                  onInput={(e: any) => setMinPrice(e.target.value)}
-                  placeholder="Min price"
-                  style={{ width: "120px" }}
-                />
-                <s-text-field
-                  label=""
-                  type="number"
-                  value={maxPrice}
-                  onInput={(e: any) => setMaxPrice(e.target.value)}
-                  placeholder="Max price"
-                  style={{ width: "120px" }}
-                />
-              </s-stack>
+              <s-box padding="base" borderWidth="base" borderRadius="base">
+                <s-stack direction="block" gap="base">
+                  <s-text>Filter Products</s-text>
+                  <s-stack direction="inline" gap="base">
+                    <div style={{ flex: 1 }}>
+                      <s-text-field
+                        label="Search"
+                        value={search}
+                        onInput={(e: any) => setSearch(e.target.value)}
+                        placeholder="Search by title..."
+                      />
+                    </div>
+                    <div style={{ width: "140px" }}>
+                      <label style={{ display: "block", marginBottom: "4px", fontSize: "13px", fontWeight: "500" }}>
+                        Min Price
+                      </label>
+                      <input
+                        type="number"
+                        value={minPrice}
+                        onChange={(e) => setMinPrice(e.target.value)}
+                        placeholder="0.00"
+                        style={{
+                          width: "100%",
+                          padding: "6px 8px",
+                          border: "1px solid #c9cccf",
+                          borderRadius: "4px",
+                          fontSize: "14px"
+                        }}
+                      />
+                    </div>
+                    <div style={{ width: "140px" }}>
+                      <label style={{ display: "block", marginBottom: "4px", fontSize: "13px", fontWeight: "500" }}>
+                        Max Price
+                      </label>
+                      <input
+                        type="number"
+                        value={maxPrice}
+                        onChange={(e) => setMaxPrice(e.target.value)}
+                        placeholder="999.00"
+                        style={{
+                          width: "100%",
+                          padding: "6px 8px",
+                          border: "1px solid #c9cccf",
+                          borderRadius: "4px",
+                          fontSize: "14px"
+                        }}
+                      />
+                    </div>
+                  </s-stack>
+                </s-stack>
+              </s-box>
 
               {/* Product Grid */}
               <div
@@ -442,7 +599,13 @@ export default function ImportProducts() {
               </div>
 
               <s-stack direction="inline" gap="base">
-                <s-button onClick={() => { setStep("input"); setProducts([]); }} variant="tertiary">
+                <s-button
+                  onClick={() => {
+                    setStep("input");
+                    setProducts([]);
+                  }}
+                  variant="tertiary"
+                >
                   Back
                 </s-button>
               </s-stack>
@@ -458,101 +621,123 @@ export default function ImportProducts() {
             onClick={handleUpload}
             {...(isUploading ? { loading: true } : {})}
           >
-            {isUploading ? "Uploading..." : `Import ${selectedIds.size} Products to Shopify`}
+            {isUploading
+              ? "Uploading..."
+              : `Import ${selectedIds.size} Products to Shopify`}
           </s-button>
 
           <s-section heading="Listing Settings">
             <s-stack direction="block" gap="base">
               <s-stack direction="inline" gap="base">
                 <div style={{ flex: 1 }}>
-                  <label style={{ display: "block", marginBottom: "4px", fontSize: "13px", fontWeight: 500 }}>
-                    Template Title
-                  </label>
-                  <select
+                  <s-select
+                    label="Template Title"
                     value={titleTemplateId}
-                    onChange={(e) => setTitleTemplateId(e.target.value)}
-                    style={selectStyle}
+                    onChange={(e: any) => setTitleTemplateId(e.target.value)}
                   >
-                    <option value="">No template (default AI)</option>
+                    <s-option value="">No template (default AI)</s-option>
                     {templates.map((t) => (
-                      <option key={t.id} value={t.id}>
+                      <s-option key={t.id} value={String(t.id)}>
                         {t.name}
-                      </option>
+                      </s-option>
                     ))}
-                  </select>
+                  </s-select>
                 </div>
                 <div style={{ flex: 1 }}>
-                  <label style={{ display: "block", marginBottom: "4px", fontSize: "13px", fontWeight: 500 }}>
-                    Template Description
-                  </label>
-                  <select
+                  <s-select
+                    label="Template Description"
                     value={descTemplateId}
-                    onChange={(e) => setDescTemplateId(e.target.value)}
-                    style={selectStyle}
+                    onChange={(e: any) => setDescTemplateId(e.target.value)}
                   >
-                    <option value="">No template (default AI)</option>
+                    <s-option value="">No template (default AI)</s-option>
                     {templates.map((t) => (
-                      <option key={t.id} value={t.id}>
+                      <s-option key={t.id} value={String(t.id)}>
                         {t.name}
-                      </option>
+                      </s-option>
                     ))}
-                  </select>
+                  </s-select>
                 </div>
               </s-stack>
 
               <div>
-                <label style={{ display: "block", marginBottom: "4px", fontSize: "13px", fontWeight: 500 }}>
-                  Collections
-                </label>
-                <select
-                  multiple
-                  value={selectedCollections}
-                  onChange={(e) => {
-                    const selected = Array.from(e.target.selectedOptions, (o) => o.value);
-                    setSelectedCollections(selected);
+                <div style={{ marginBottom: "4px", fontWeight: "600" }}>Collections</div>
+                <div style={{ fontSize: "13px", color: "#666", marginBottom: "8px" }}>
+                  Select collections to assign products to
+                </div>
+                <s-box
+                  padding="tight"
+                  borderWidth="base"
+                  borderRadius="base"
+                  style={{
+                    maxHeight: "150px",
+                    overflow: "auto",
                   }}
-                  style={{ ...selectStyle, height: "100px" }}
                 >
-                  {collections.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.title}
-                    </option>
-                  ))}
-                </select>
-                <s-text variant="bodySm" tone="subdued">
-                  Hold Ctrl/Cmd to select multiple collections
-                </s-text>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                    {collections.map((c) => (
+                      <label key={c.id} style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer" }}>
+                        <input
+                          type="checkbox"
+                          checked={selectedCollections.includes(c.id)}
+                          onChange={(e) => {
+                            setSelectedCollections((prev) =>
+                              e.target.checked
+                                ? [...prev, c.id]
+                                : prev.filter((id) => id !== c.id)
+                            );
+                          }}
+                        />
+                        <span>{c.title}</span>
+                      </label>
+                    ))}
+                  </div>
+                </s-box>
               </div>
 
-              <s-button
-                onClick={handleOptimize}
-                variant="primary"
-                {...(isOptimizing ? { loading: true } : {})}
-              >
-                {isOptimizing ? "Optimizing with AI..." : "Optimize with AI"}
-              </s-button>
+              {isOptimizing ? (
+                <s-banner tone="info">
+                  <s-stack direction="block" gap="tight">
+                    <s-text fontWeight="semibold">
+                      Optimizing products with AI...
+                    </s-text>
+                    <s-progress-bar />
+                    <s-text tone="subdued">
+                      This may take a moment depending on the number of
+                      products.
+                    </s-text>
+                  </s-stack>
+                </s-banner>
+              ) : (
+                <s-button onClick={handleOptimize} variant="primary">
+                  Optimize with AI
+                </s-button>
+              )}
             </s-stack>
           </s-section>
 
-          <s-section heading="Store Settings">
+          <s-section heading="Product Information">
             <s-stack direction="block" gap="base">
               <s-stack direction="inline" gap="base">
                 <div style={{ flex: 1 }}>
                   <s-text-field
                     label="Product Vendor"
                     value={vendor}
-                    onInput={(e: any) => setVendor(e.target.value)}
+                    onChange={(e: any) => setVendor(e.target.value)}
+                    placeholder="Your brand name"
                   />
                 </div>
                 <div style={{ flex: 1 }}>
-                  <label style={{ display: "block", marginBottom: "4px", fontSize: "13px", fontWeight: 500 }}>
-                    Language
-                  </label>
-                  <select value={language} onChange={(e) => setLanguage(e.target.value)} style={selectStyle}>
+                  <s-select
+                    label="Language"
+                    value={language}
+                    onChange={(e: any) => setLanguage(e.target.value)}
+                  >
                     {LANGUAGE_OPTIONS.map((l) => (
-                      <option key={l} value={l}>{l}</option>
+                      <s-option key={l} value={l}>
+                        {l}
+                      </s-option>
                     ))}
-                  </select>
+                  </s-select>
                 </div>
               </s-stack>
 
@@ -561,97 +746,202 @@ export default function ImportProducts() {
                   <s-text-field
                     label="Region"
                     value={region}
-                    onInput={(e: any) => setRegion(e.target.value)}
+                    onChange={(e: any) => setRegion(e.target.value)}
                     placeholder="e.g., United Kingdom"
                   />
                 </div>
                 <div style={{ flex: 1 }}>
-                  <s-text-field
-                    label="Default Inventory"
-                    type="number"
-                    value={defaultInventory}
-                    onInput={(e: any) => setDefaultInventory(e.target.value)}
-                  />
+                  <s-select
+                    label="Product Status"
+                    value={productStatus}
+                    onChange={(e: any) => setProductStatus(e.target.value)}
+                  >
+                    <s-option value="ACTIVE">Active</s-option>
+                    <s-option value="DRAFT">Draft</s-option>
+                  </s-select>
                 </div>
               </s-stack>
+            </s-stack>
+          </s-section>
 
-              <ToggleRow label="Track Inventory" checked={trackInventory} onChange={setTrackInventory} />
+          <s-section heading="Pricing">
+            <s-stack direction="block" gap="base">
+              <s-banner tone="info">
+                <s-stack direction="block" gap="base">
+                  <s-text>How pricing works:</s-text>
+                  <s-unordered-list>
+                    <s-list-item>
+                      <strong>Multiplier Examples:</strong> Use 0.97 for 3% lower, 1.00 for same price, 1.10 for 10% higher
+                    </s-list-item>
+                    <s-list-item>
+                      <strong>Currency Conversion:</strong> Prices will be converted to your region's currency (e.g., GBP for UK) using current exchange rates
+                    </s-list-item>
+                    <s-list-item>
+                      <strong>Keep Original:</strong> Check "Keep original price" to use the competitor's exact price (after currency conversion)
+                    </s-list-item>
+                  </s-unordered-list>
+                </s-stack>
+              </s-banner>
 
               <s-stack direction="inline" gap="base">
                 <div style={{ flex: 1 }}>
                   <s-text-field
                     label="Retail Price Multiplier"
-                    type="number"
                     value={retailMultiplier}
                     onInput={(e: any) => setRetailMultiplier(e.target.value)}
-                    step="0.1"
                   />
-                  <label style={{ fontSize: "12px" }}>
-                    <input type="checkbox" checked={retailManual} onChange={(e) => setRetailManual(e.target.checked)} />
-                    {" "}Manual
-                  </label>
+                  <div style={{ marginTop: "4px", fontSize: "13px", color: "#666" }}>
+                    Applied after currency conversion
+                  </div>
+                  <div style={{ marginTop: "8px" }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <input
+                        type="checkbox"
+                        checked={retailManual}
+                        onChange={(e) => setRetailManual(e.target.checked)}
+                      />
+                      <span>Keep original price (ignore multiplier)</span>
+                    </label>
+                  </div>
                 </div>
                 <div style={{ flex: 1 }}>
                   <s-text-field
                     label="Compare at Price Multiplier"
-                    type="number"
                     value={compareAtMultiplier}
                     onInput={(e: any) => setCompareAtMultiplier(e.target.value)}
-                    step="0.1"
                   />
-                  <label style={{ fontSize: "12px" }}>
-                    <input type="checkbox" checked={compareAtManual} onChange={(e) => setCompareAtManual(e.target.checked)} />
-                    {" "}Manual
+                  <div style={{ marginTop: "4px", fontSize: "13px", color: "#666" }}>
+                    The "was" price shown to customers
+                  </div>
+                  <div style={{ marginTop: "8px" }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <input
+                        type="checkbox"
+                        checked={compareAtManual}
+                        onChange={(e) => setCompareAtManual(e.target.checked)}
+                      />
+                      <span>Keep original price (ignore multiplier)</span>
+                    </label>
+                  </div>
+                </div>
+              </s-stack>
+
+              <s-stack direction="inline" gap="base">
+                <div style={{ flex: 1 }}>
+                  <s-select
+                    label="Price Rounding"
+                    value={priceRounding}
+                    onChange={(e: any) => setPriceRounding(e.target.value)}
+                  >
+                    {PRICE_ROUNDING_OPTIONS.map((opt) => (
+                      <s-option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </s-option>
+                    ))}
+                  </s-select>
+                </div>
+                <div style={{ flex: 1, display: "flex", alignItems: "flex-end", paddingBottom: "8px" }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <input
+                      type="checkbox"
+                      checked={vatEnabled}
+                      onChange={(e) => setVatEnabled(e.target.checked)}
+                    />
+                    <span>Enable VAT</span>
+                  </label>
+                </div>
+              </s-stack>
+            </s-stack>
+          </s-section>
+
+          <s-section heading="Inventory">
+            <s-stack direction="block" gap="base">
+              <s-stack direction="inline" gap="base">
+                <div style={{ flex: 1 }}>
+                  <s-text-field
+                    label="Default Inventory"
+                    value={defaultInventory}
+                    onInput={(e: any) => setDefaultInventory(e.target.value)}
+                  />
+                </div>
+                <div style={{ flex: 1, display: "flex", alignItems: "flex-end", paddingBottom: "8px" }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <input
+                      type="checkbox"
+                      checked={trackInventory}
+                      onChange={(e) => setTrackInventory(e.target.checked)}
+                    />
+                    <span>Track Inventory</span>
                   </label>
                 </div>
               </s-stack>
 
-              <div>
-                <label style={{ display: "block", marginBottom: "4px", fontSize: "13px", fontWeight: 500 }}>
-                  Price Rounding
-                </label>
-                <select value={priceRounding} onChange={(e) => setPriceRounding(e.target.value)} style={selectStyle}>
-                  {PRICE_ROUNDING_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                  ))}
-                </select>
-              </div>
+              <label style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <input
+                  type="checkbox"
+                  checked={inventoryPolicy === "CONTINUE"}
+                  onChange={(e) =>
+                    setInventoryPolicy(e.target.checked ? "CONTINUE" : "DENY")
+                  }
+                />
+                <span>Continue Selling When Out of Stock</span>
+              </label>
+            </s-stack>
+          </s-section>
 
-              <div>
-                <label style={{ display: "block", marginBottom: "4px", fontSize: "13px", fontWeight: 500 }}>
-                  Product Status
-                </label>
-                <select
-                  value={productStatus}
-                  onChange={(e) => setProductStatus(e.target.value as "ACTIVE" | "DRAFT")}
-                  style={selectStyle}
-                >
-                  <option value="ACTIVE">Active</option>
-                  <option value="DRAFT">Draft</option>
-                </select>
+          <s-section heading="Additional Options">
+            <s-stack direction="block" gap="base">
+              <label style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <input
+                  type="checkbox"
+                  checked={salesChannels}
+                  onChange={(e) => setSalesChannels(e.target.checked)}
+                />
+                <span>Publish to Sales Channels</span>
+              </label>
+              <label style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <input
+                  type="checkbox"
+                  checked={altText}
+                  onChange={(e) => setAltText(e.target.checked)}
+                />
+                <span>Optimize Image Alt Text with AI</span>
+              </label>
+              <label style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <input
+                  type="checkbox"
+                  checked={variantPricing}
+                  onChange={(e) => setVariantPricing(e.target.checked)}
+                />
+                <span>Use Same Price for All Variants</span>
+              </label>
+              <label style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <input
+                  type="checkbox"
+                  checked={false}
+                  onChange={(e) => {/* TODO: AI image improvement */}}
+                />
+                <span>🎨 Enhance Product Images with AI (experimental)</span>
+              </label>
+              <div style={{ marginLeft: "32px", fontSize: "13px", color: "#666" }}>
+                Automatically improve competitor images using AI before importing
               </div>
-
-              <ToggleRow label="Sales Channels" checked={salesChannels} onChange={setSalesChannels} />
-              <ToggleRow label="VAT" checked={vatEnabled} onChange={setVatEnabled} />
-              <ToggleRow label="Alt Text Optimization" checked={altText} onChange={setAltText} />
-              <ToggleRow label="Variant Pricing (same price)" checked={variantPricing} onChange={setVariantPricing} />
-              <ToggleRow
-                label="Continue Selling When Out of Stock"
-                checked={inventoryPolicy === "CONTINUE"}
-                onChange={(v) => setInventoryPolicy(v ? "CONTINUE" : "DENY")}
-              />
             </s-stack>
           </s-section>
 
           <s-section>
             <s-stack direction="inline" gap="base">
-              <s-button onClick={() => setStep("select")} variant="tertiary">Back</s-button>
+              <s-button onClick={() => setStep("select")} variant="tertiary">
+                Back
+              </s-button>
               <s-button
                 onClick={handleUpload}
                 variant="primary"
                 {...(isUploading ? { loading: true } : {})}
               >
-                {isUploading ? "Uploading..." : `Import ${selectedIds.size} Products`}
+                {isUploading
+                  ? "Uploading..."
+                  : `Import ${selectedIds.size} Products`}
               </s-button>
             </s-stack>
           </s-section>
@@ -663,10 +953,12 @@ export default function ImportProducts() {
           <s-box padding="extraLoose" style={{ textAlign: "center" }}>
             <s-stack direction="block" gap="base" align="center">
               <s-heading>Uploading products to Shopify...</s-heading>
+              <s-progress-bar />
               <s-paragraph>
-                Please wait while we create {selectedIds.size} products in your store.
-                This may take a few minutes for large batches.
+                Please wait while we create {selectedIds.size} products in your
+                store. This may take a few minutes for large batches.
               </s-paragraph>
+              <s-badge tone="info">Processing</s-badge>
             </s-stack>
           </s-box>
         </s-section>
@@ -704,29 +996,43 @@ function ProductCard({
       <div
         style={{
           position: "absolute",
-          top: "8px",
-          right: "8px",
-          width: "20px",
-          height: "20px",
-          borderRadius: "4px",
+          top: "10px",
+          right: "10px",
+          width: "24px",
+          height: "24px",
+          borderRadius: "6px",
           border: "2px solid",
-          borderColor: selected ? "var(--p-color-border-interactive)" : "var(--p-color-border)",
-          backgroundColor: selected ? "var(--p-color-bg-fill-brand)" : "var(--p-color-bg-surface)",
+          borderColor: selected
+            ? "#2C6ECB"
+            : "#c9cccf",
+          backgroundColor: selected
+            ? "#2C6ECB"
+            : "white",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           zIndex: 1,
+          boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
+          transition: "all 0.15s ease"
         }}
       >
         {selected && (
-          <span style={{ color: "white", fontSize: "12px", fontWeight: "bold" }}>
+          <span
+            style={{ color: "white", fontSize: "14px", fontWeight: "bold" }}
+          >
             ✓
           </span>
         )}
       </div>
 
       {/* Image */}
-      <div style={{ aspectRatio: "1", overflow: "hidden", backgroundColor: "#f5f5f5" }}>
+      <div
+        style={{
+          aspectRatio: "1",
+          overflow: "hidden",
+          backgroundColor: "#f5f5f5",
+        }}
+      >
         {firstImage ? (
           <img
             src={firstImage.src}
@@ -763,9 +1069,16 @@ function ProductCard({
         >
           {product.title}
         </div>
-        <div style={{ display: "flex", justifyContent: "space-between", marginTop: "4px" }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            marginTop: "4px",
+          }}
+        >
           <span style={{ fontSize: "11px", color: "#666" }}>
-            {product.variants.length} variant{product.variants.length !== 1 ? "s" : ""}
+            {product.variants.length} variant
+            {product.variants.length !== 1 ? "s" : ""}
           </span>
           <span style={{ fontSize: "12px", fontWeight: 600 }}>${price}</span>
         </div>
@@ -773,37 +1086,6 @@ function ProductCard({
     </div>
   );
 }
-
-function ToggleRow({
-  label,
-  checked,
-  onChange,
-}: {
-  label: string;
-  checked: boolean;
-  onChange: (value: boolean) => void;
-}) {
-  return (
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0" }}>
-      <s-text fontWeight="semibold">{label}</s-text>
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
-        style={{ width: "40px", height: "20px", accentColor: "var(--p-color-bg-fill-brand)" }}
-      />
-    </div>
-  );
-}
-
-const selectStyle: React.CSSProperties = {
-  width: "100%",
-  padding: "8px 12px",
-  borderRadius: "8px",
-  border: "1px solid var(--p-color-border)",
-  fontSize: "14px",
-  backgroundColor: "var(--p-color-bg-surface)",
-};
 
 export const headers: HeadersFunction = (headersArgs) => {
   return boundary.headers(headersArgs);

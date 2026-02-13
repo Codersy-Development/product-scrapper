@@ -37,7 +37,6 @@ export const loader = async ({ request, context }: LoaderFunctionArgs) => {
   const searchQuery = url.searchParams.get("q") || "";
   const after = url.searchParams.get("after") || undefined;
 
-  // Fetch products from Shopify
   const response = await admin.graphql(PRODUCTS_QUERY, {
     variables: {
       first: 24,
@@ -53,7 +52,6 @@ export const loader = async ({ request, context }: LoaderFunctionArgs) => {
   );
   const pageInfo = productsData?.pageInfo || { hasNextPage: false, endCursor: null };
 
-  // Load templates
   const templatesResult = await db
     .prepare("SELECT * FROM prompt_templates WHERE shop = ? ORDER BY name")
     .bind(session.shop)
@@ -113,6 +111,7 @@ export default function OptimizeProducts() {
   const [descTemplateId, setDescTemplateId] = useState<string>("");
   const [optimizedData, setOptimizedData] = useState<any[]>([]);
   const [showPreview, setShowPreview] = useState(false);
+  const [resultBanner, setResultBanner] = useState<{ tone: string; message: string } | null>(null);
 
   const searchFetcher = useFetcher();
   const optimizeFetcher = useFetcher();
@@ -121,23 +120,26 @@ export default function OptimizeProducts() {
   const isOptimizing = optimizeFetcher.state !== "idle";
   const isUpdating = updateFetcher.state !== "idle";
 
-  // Handle optimize response
   useEffect(() => {
     if (optimizeFetcher.data) {
       const data = optimizeFetcher.data as any;
       if (data.products) {
         setOptimizedData(data.products);
         setShowPreview(true);
+        setResultBanner({ tone: "success", message: `Successfully optimized ${data.products.length} products. Review the changes below.` });
         shopify.toast.show(`Optimized ${data.products.length} products`);
       }
     }
   }, [optimizeFetcher.data, shopify]);
 
-  // Handle update response
   useEffect(() => {
     if (updateFetcher.data) {
       const data = updateFetcher.data as any;
       if (data.updated !== undefined) {
+        setResultBanner({
+          tone: data.failed > 0 ? "warning" : "success",
+          message: `Updated ${data.updated}/${data.total} products${data.failed > 0 ? ` (${data.failed} failed)` : ""}`,
+        });
         shopify.toast.show(`Updated ${data.updated}/${data.total} products`);
         setShowPreview(false);
         setOptimizedData([]);
@@ -164,9 +166,9 @@ export default function OptimizeProducts() {
   };
 
   const handleOptimize = () => {
+    setResultBanner(null);
     const selectedProducts = products.filter((p) => selectedIds.has(p.id));
 
-    // Convert to ScrapedProduct format for the AI optimizer
     const productsForAI: ScrapedProduct[] = selectedProducts.map((p) => ({
       externalId: 0,
       title: p.title,
@@ -215,7 +217,6 @@ export default function OptimizeProducts() {
   const handleApplyChanges = () => {
     const selectedProducts = products.filter((p) => selectedIds.has(p.id));
 
-    // Map optimized data back to Shopify product IDs
     const updates = selectedProducts.map((p, idx) => {
       const optimized = optimizedData[idx];
       return {
@@ -240,6 +241,12 @@ export default function OptimizeProducts() {
 
   return (
     <s-page heading="Optimize Existing Products">
+      {resultBanner && (
+        <s-banner tone={resultBanner.tone} dismissible onDismiss={() => setResultBanner(null)}>
+          {resultBanner.message}
+        </s-banner>
+      )}
+
       {!showPreview ? (
         <>
           <s-section>
@@ -259,50 +266,57 @@ export default function OptimizeProducts() {
 
               <s-stack direction="inline" gap="base">
                 <div style={{ flex: 1 }}>
-                  <label style={{ display: "block", marginBottom: "4px", fontSize: "13px", fontWeight: 500 }}>
-                    Title Template
-                  </label>
-                  <select
+                  <s-select
+                    label="Title Template"
                     value={titleTemplateId}
-                    onChange={(e) => setTitleTemplateId(e.target.value)}
-                    style={selectStyle}
+                    onChange={(e: any) => setTitleTemplateId(e.target.value)}
                   >
-                    <option value="">Default AI optimization</option>
+                    <s-option value="">Default AI optimization</s-option>
                     {templates.map((t) => (
-                      <option key={t.id} value={t.id}>{t.name}</option>
+                      <s-option key={t.id} value={String(t.id)}>{t.name}</s-option>
                     ))}
-                  </select>
+                  </s-select>
                 </div>
                 <div style={{ flex: 1 }}>
-                  <label style={{ display: "block", marginBottom: "4px", fontSize: "13px", fontWeight: 500 }}>
-                    Description Template
-                  </label>
-                  <select
+                  <s-select
+                    label="Description Template"
                     value={descTemplateId}
-                    onChange={(e) => setDescTemplateId(e.target.value)}
-                    style={selectStyle}
+                    onChange={(e: any) => setDescTemplateId(e.target.value)}
                   >
-                    <option value="">Default AI optimization</option>
+                    <s-option value="">Default AI optimization</s-option>
                     {templates.map((t) => (
-                      <option key={t.id} value={t.id}>{t.name}</option>
+                      <s-option key={t.id} value={String(t.id)}>{t.name}</s-option>
                     ))}
-                  </select>
+                  </s-select>
                 </div>
               </s-stack>
 
-              <s-stack direction="inline" gap="tight">
-                <s-text>Selected: {selectedIds.size} products</s-text>
+              <s-stack direction="inline" gap="tight" align="center">
+                <s-badge tone="info">{selectedIds.size} selected</s-badge>
                 <s-button onClick={selectAll} variant="tertiary">Select All</s-button>
                 <s-button onClick={() => setSelectedIds(new Set())} variant="tertiary">Deselect All</s-button>
-                <s-button
-                  onClick={handleOptimize}
-                  variant="primary"
-                  disabled={selectedIds.size === 0}
-                  {...(isOptimizing ? { loading: true } : {})}
-                >
-                  {isOptimizing ? "Optimizing..." : `Optimize ${selectedIds.size} Products`}
-                </s-button>
+                {isOptimizing ? (
+                  <s-button variant="primary" loading>Optimizing...</s-button>
+                ) : (
+                  <s-button
+                    onClick={handleOptimize}
+                    variant="primary"
+                    disabled={selectedIds.size === 0}
+                  >
+                    Optimize {selectedIds.size} Products
+                  </s-button>
+                )}
               </s-stack>
+
+              {isOptimizing && (
+                <s-banner tone="info">
+                  <s-stack direction="block" gap="tight">
+                    <s-text fontWeight="semibold">Optimizing products with AI...</s-text>
+                    <s-progress-bar />
+                    <s-text tone="subdued">Processing {selectedIds.size} products. This may take a moment.</s-text>
+                  </s-stack>
+                </s-banner>
+              )}
             </s-stack>
           </s-section>
 
@@ -391,7 +405,7 @@ export default function OptimizeProducts() {
                     >
                       {product.title}
                     </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginTop: "4px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "4px" }}>
                       <span style={{ fontSize: "11px", color: "#666" }}>
                         {product.variants.edges.length} variant
                         {product.variants.edges.length !== 1 ? "s" : ""}
@@ -400,21 +414,10 @@ export default function OptimizeProducts() {
                         ${product.variants.edges[0]?.node.price || "0.00"}
                       </span>
                     </div>
-                    <div style={{ marginTop: "2px" }}>
-                      <span
-                        style={{
-                          fontSize: "10px",
-                          padding: "2px 6px",
-                          borderRadius: "4px",
-                          backgroundColor:
-                            product.status === "ACTIVE"
-                              ? "var(--p-color-bg-fill-success)"
-                              : "var(--p-color-bg-surface-secondary)",
-                          color: product.status === "ACTIVE" ? "white" : "inherit",
-                        }}
-                      >
+                    <div style={{ marginTop: "4px" }}>
+                      <s-badge tone={product.status === "ACTIVE" ? "success" : undefined}>
                         {product.status}
-                      </span>
+                      </s-badge>
                     </div>
                   </div>
                 </div>
@@ -504,7 +507,7 @@ export default function OptimizeProducts() {
 
           <s-section>
             <s-stack direction="inline" gap="base">
-              <s-button onClick={() => { setShowPreview(false); setOptimizedData([]); }} variant="tertiary">
+              <s-button onClick={() => { setShowPreview(false); setOptimizedData([]); setResultBanner(null); }} variant="tertiary">
                 Back
               </s-button>
               <s-button
@@ -521,15 +524,6 @@ export default function OptimizeProducts() {
     </s-page>
   );
 }
-
-const selectStyle: React.CSSProperties = {
-  width: "100%",
-  padding: "8px 12px",
-  borderRadius: "8px",
-  border: "1px solid var(--p-color-border)",
-  fontSize: "14px",
-  backgroundColor: "var(--p-color-bg-surface)",
-};
 
 export const headers: HeadersFunction = (headersArgs) => {
   return boundary.headers(headersArgs);

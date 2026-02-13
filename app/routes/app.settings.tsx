@@ -226,27 +226,15 @@ export default function Settings() {
               />
             </div>
             <div style={{ flex: 1 }}>
-              <label style={{ display: "block", marginBottom: "4px", fontSize: "13px", fontWeight: 500 }}>
-                Language
-              </label>
-              <select
+              <s-select
+                label="Language"
                 value={language}
-                onChange={(e) => setLanguage(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: "8px 12px",
-                  borderRadius: "8px",
-                  border: "1px solid var(--p-color-border)",
-                  fontSize: "14px",
-                  backgroundColor: "var(--p-color-bg-surface)",
-                }}
+                onChange={(e: any) => setLanguage(e.target.value)}
               >
                 {LANGUAGE_OPTIONS.map((lang) => (
-                  <option key={lang} value={lang}>
-                    {lang}
-                  </option>
+                  <s-option key={lang} value={lang}>{lang}</s-option>
                 ))}
-              </select>
+              </s-select>
             </div>
           </s-stack>
 
@@ -262,112 +250,107 @@ export default function Settings() {
             <div style={{ flex: 1 }}>
               <s-text-field
                 label="Default Inventory"
-                type="number"
                 value={defaultInventory}
                 onInput={(e: any) => setDefaultInventory(e.target.value)}
               />
             </div>
           </s-stack>
 
-          <s-stack direction="inline" gap="base" align="center">
-            <s-text>Track Inventory</s-text>
+          <label style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "8px" }}>
             <input
               type="checkbox"
               checked={trackInventory}
               onChange={(e) => setTrackInventory(e.target.checked)}
-              style={{ width: "40px", height: "20px" }}
             />
-          </s-stack>
+            <span>Track Inventory</span>
+          </label>
         </s-stack>
       </s-section>
 
       <s-section heading="Pricing">
         <s-stack direction="block" gap="base">
+          <s-banner tone="info">
+            <s-stack direction="block" gap="base">
+              <s-text>How pricing works:</s-text>
+              <s-unordered-list>
+                <s-list-item>
+                  <strong>Multiplier Examples:</strong> Use 0.97 for 3% lower, 1.00 for same price, 1.10 for 10% higher
+                </s-list-item>
+                <s-list-item>
+                  <strong>Currency Conversion:</strong> Prices will be converted to your region's currency (e.g., GBP for UK) using current exchange rates
+                </s-list-item>
+                <s-list-item>
+                  <strong>Keep Original:</strong> Check "Keep original price" to use the competitor's exact price (after currency conversion)
+                </s-list-item>
+              </s-unordered-list>
+            </s-stack>
+          </s-banner>
+
           <s-stack direction="inline" gap="base">
             <div style={{ flex: 1 }}>
               <s-text-field
                 label="Retail Price Multiplier"
-                type="number"
                 value={retailMultiplier}
                 onInput={(e: any) => setRetailMultiplier(e.target.value)}
-                step="0.1"
               />
-              <s-stack direction="inline" gap="tight" align="center">
-                <s-text variant="bodySm">Manual</s-text>
-                <input
-                  type="checkbox"
-                  checked={retailManual}
-                  onChange={(e) => setRetailManual(e.target.checked)}
-                />
-              </s-stack>
+              <div style={{ marginTop: "4px", fontSize: "13px", color: "#666" }}>
+                Applied after currency conversion
+              </div>
+              <div style={{ marginTop: "8px" }}>
+                <label style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <input
+                    type="checkbox"
+                    checked={retailManual}
+                    onChange={(e) => setRetailManual(e.target.checked)}
+                  />
+                  <span>Keep original price (ignore multiplier)</span>
+                </label>
+              </div>
             </div>
             <div style={{ flex: 1 }}>
               <s-text-field
                 label="Compare at Price Multiplier"
-                type="number"
                 value={compareAtMultiplier}
                 onInput={(e: any) => setCompareAtMultiplier(e.target.value)}
-                step="0.1"
               />
-              <s-stack direction="inline" gap="tight" align="center">
-                <s-text variant="bodySm">Manual</s-text>
-                <input
-                  type="checkbox"
-                  checked={compareAtManual}
-                  onChange={(e) => setCompareAtManual(e.target.checked)}
-                />
-              </s-stack>
+              <div style={{ marginTop: "4px", fontSize: "13px", color: "#666" }}>
+                The "was" price shown to customers
+              </div>
+              <div style={{ marginTop: "8px" }}>
+                <label style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <input
+                    type="checkbox"
+                    checked={compareAtManual}
+                    onChange={(e) => setCompareAtManual(e.target.checked)}
+                  />
+                  <span>Keep original price (ignore multiplier)</span>
+                </label>
+              </div>
             </div>
           </s-stack>
 
-          <div>
-            <label style={{ display: "block", marginBottom: "4px", fontSize: "13px", fontWeight: 500 }}>
-              Price Rounding
-            </label>
-            <select
-              value={priceRounding}
-              onChange={(e) => setPriceRounding(e.target.value)}
-              style={{
-                width: "100%",
-                padding: "8px 12px",
-                borderRadius: "8px",
-                border: "1px solid var(--p-color-border)",
-                fontSize: "14px",
-                backgroundColor: "var(--p-color-bg-surface)",
-              }}
-            >
-              {PRICE_ROUNDING_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          </div>
+          <s-select
+            label="Price Rounding"
+            value={priceRounding}
+            onChange={(e: any) => setPriceRounding(e.target.value)}
+          >
+            {PRICE_ROUNDING_OPTIONS.map((opt) => (
+              <s-option key={opt.value} value={opt.value}>{opt.label}</s-option>
+            ))}
+          </s-select>
         </s-stack>
       </s-section>
 
       <s-section heading="Product Defaults">
         <s-stack direction="block" gap="base">
-          <div>
-            <label style={{ display: "block", marginBottom: "4px", fontSize: "13px", fontWeight: 500 }}>
-              Product Status
-            </label>
-            <select
-              value={productStatus}
-              onChange={(e) => setProductStatus(e.target.value as "ACTIVE" | "DRAFT")}
-              style={{
-                width: "100%",
-                padding: "8px 12px",
-                borderRadius: "8px",
-                border: "1px solid var(--p-color-border)",
-                fontSize: "14px",
-                backgroundColor: "var(--p-color-bg-surface)",
-              }}
-            >
-              <option value="ACTIVE">Active</option>
-              <option value="DRAFT">Draft</option>
-            </select>
-          </div>
+          <s-select
+            label="Product Status"
+            value={productStatus}
+            onChange={(e: any) => setProductStatus(e.target.value)}
+          >
+            <s-option value="ACTIVE">Active</s-option>
+            <s-option value="DRAFT">Draft</s-option>
+          </s-select>
 
           <s-stack direction="block" gap="tight">
             <ToggleRow label="Sales Channels" description="Publish products to sales channels" checked={salesChannels} onChange={setSalesChannels} />
@@ -474,7 +457,7 @@ function ToggleRow({
         display: "flex",
         justifyContent: "space-between",
         alignItems: "center",
-        padding: "8px 0",
+        padding: "12px 0",
         borderBottom: "1px solid var(--p-color-border-subdued)",
       }}
     >
@@ -490,7 +473,7 @@ function ToggleRow({
         type="checkbox"
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
-        style={{ width: "40px", height: "20px", accentColor: "var(--p-color-bg-fill-brand)" }}
+        style={{ width: "20px", height: "20px", cursor: "pointer" }}
       />
     </div>
   );

@@ -3,6 +3,7 @@ import { authenticate } from "../shopify.server";
 import { applyPricingToAllVariants } from "../lib/pricing.server";
 import {
   PRODUCT_CREATE_MUTATION,
+  PRODUCT_UPDATE_MUTATION,
   COLLECTION_ADD_PRODUCTS_MUTATION,
 } from "../lib/shopify-queries.server";
 import type { ScrapedProduct, StoreSettings } from "../lib/types";
@@ -44,7 +45,7 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
       // Apply pricing rules
       const processedVariants = applyPricingToAllVariants(product.variants, settings);
 
-      // Build product input
+      // Build product input (ProductCreateInput only supports basic fields)
       const productInput: any = {
         title: product.title,
         descriptionHtml: product.description,
@@ -54,34 +55,6 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
         status: settings.product_status,
       };
 
-      // Add images
-      if (product.images.length > 0) {
-        productInput.images = product.images.map((img) => ({
-          src: img.src,
-          altText: img.alt || "",
-        }));
-      }
-
-      // Add variants
-      if (processedVariants.length > 0) {
-        productInput.variants = processedVariants.map((v) => ({
-          price: v.price,
-          compareAtPrice: v.compareAtPrice || undefined,
-          sku: v.sku || undefined,
-          weight: v.weight || undefined,
-          weightUnit: v.weightUnit?.toUpperCase() || undefined,
-          taxable: settings.vat_enabled,
-          inventoryManagement: settings.track_inventory ? "SHOPIFY" : null,
-          inventoryPolicy: settings.inventory_policy,
-          options: [v.option1, v.option2, v.option3].filter(Boolean),
-        }));
-      }
-
-      // Add options if present
-      if (product.options.length > 0) {
-        productInput.options = product.options.map((o) => o.name);
-      }
-
       const response = await admin.graphql(PRODUCT_CREATE_MUTATION, {
         variables: { product: productInput },
       });
@@ -89,7 +62,58 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
       const createdProduct = result.data?.productCreate?.product;
 
       if (createdProduct && !result.data?.productCreate?.userErrors?.length) {
-        createdProductIds.push(createdProduct.id);
+        const productId = createdProduct.id;
+
+        // Now update the product with variants and images using ProductUpdate
+        const updateInput: any = {
+          id: productId,
+        };
+
+        // Add images
+        if (product.images.length > 0) {
+          updateInput.images = product.images.map((img) => ({
+            src: img.src,
+            altText: img.alt || "",
+          }));
+        }
+
+        // Add variants with options
+        if (processedVariants.length > 0) {
+          updateInput.variants = processedVariants.map((v) => ({
+            price: v.price,
+            compareAtPrice: v.compareAtPrice || undefined,
+            sku: v.sku || undefined,
+            weight: v.weight || undefined,
+            weightUnit: v.weightUnit?.toUpperCase() || undefined,
+            taxable: settings.vat_enabled,
+            inventoryManagement: settings.track_inventory ? "SHOPIFY" : null,
+            inventoryPolicy: settings.inventory_policy,
+            options: [v.option1, v.option2, v.option3].filter(Boolean),
+          }));
+        }
+
+        // Add options (variant options like Size, Color, etc.)
+        if (product.options.length > 0) {
+          updateInput.productOptions = product.options.map((o) => ({
+            name: o.name,
+            values: o.values.map((v: string) => ({ name: v })),
+          }));
+        }
+
+        try {
+          const updateResponse = await admin.graphql(PRODUCT_UPDATE_MUTATION, {
+            variables: { input: updateInput },
+          });
+          const updateResult: any = await updateResponse.json();
+
+          if (updateResult.data?.productUpdate?.userErrors?.length > 0) {
+            console.error("Product update errors:", updateResult.data.productUpdate.userErrors);
+          }
+        } catch (updateError) {
+          console.error("Failed to update product with variants/images:", updateError);
+        }
+
+        createdProductIds.push(productId);
         imported++;
       } else {
         const errors = result.data?.productCreate?.userErrors;

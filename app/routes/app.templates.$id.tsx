@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type {
   ActionFunctionArgs,
   HeadersFunction,
@@ -74,6 +74,14 @@ export default function EditTemplate() {
 
   const isSubmitting = fetcher.state !== "idle";
 
+  // Handle delete response
+  useEffect(() => {
+    if (fetcher.data && (fetcher.data as any).deleted) {
+      shopify.toast.show("Template deleted");
+      navigate("/app/templates");
+    }
+  }, [fetcher.data, navigate, shopify]);
+
   const handleSave = () => {
     fetcher.submit(
       { intent: "update", name, title_prompt: titlePrompt, description_prompt: descriptionPrompt },
@@ -84,8 +92,6 @@ export default function EditTemplate() {
 
   const handleDelete = () => {
     fetcher.submit({ intent: "delete" }, { method: "POST" });
-    shopify.toast.show("Template deleted");
-    navigate("/app/templates");
   };
 
   return (
@@ -99,22 +105,50 @@ export default function EditTemplate() {
           <s-text-field
             label="Template Name"
             value={name}
-            onInput={(e: any) => setName(e.target.value)}
+            onChange={(e: any) => setName(e.target.value)}
           />
-          <s-text-field
-            label="Title Optimization Prompt"
-            value={titlePrompt}
-            onInput={(e: any) => setTitlePrompt(e.target.value)}
-            multiline
-            placeholder="Instructions for how the AI should optimize product titles..."
-          />
-          <s-text-field
-            label="Description Optimization Prompt"
-            value={descriptionPrompt}
-            onInput={(e: any) => setDescriptionPrompt(e.target.value)}
-            multiline
-            placeholder="Instructions for how the AI should optimize product descriptions..."
-          />
+
+          <div>
+            <label style={{ display: "block", marginBottom: "4px", fontWeight: "600" }}>
+              Title Optimization Prompt
+            </label>
+            <textarea
+              value={titlePrompt}
+              onChange={(e) => setTitlePrompt(e.target.value)}
+              placeholder="Instructions for how the AI should optimize product titles..."
+              rows={8}
+              style={{
+                width: "100%",
+                padding: "8px",
+                border: "1px solid #c9cccf",
+                borderRadius: "4px",
+                fontFamily: "inherit",
+                fontSize: "14px",
+                resize: "vertical"
+              }}
+            />
+          </div>
+
+          <div>
+            <label style={{ display: "block", marginBottom: "4px", fontWeight: "600" }}>
+              Description Optimization Prompt
+            </label>
+            <textarea
+              value={descriptionPrompt}
+              onChange={(e) => setDescriptionPrompt(e.target.value)}
+              placeholder="Instructions for how the AI should optimize product descriptions..."
+              rows={8}
+              style={{
+                width: "100%",
+                padding: "8px",
+                border: "1px solid #c9cccf",
+                borderRadius: "4px",
+                fontFamily: "inherit",
+                fontSize: "14px",
+                resize: "vertical"
+              }}
+            />
+          </div>
         </s-stack>
       </s-section>
 

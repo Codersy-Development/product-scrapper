@@ -110,6 +110,27 @@ export default function Dashboard() {
           </s-stack>
           {/* Second Row */}
           <s-stack direction="inline" gap="base">
+            <Link to="/app/batches" style={{ textDecoration: "none", flex: 1 }}>
+              <s-box
+                padding="base"
+                borderWidth="base"
+                borderRadius="base"
+                style={{
+                  cursor: "pointer",
+                  textAlign: "center",
+                  transition: "all 0.2s ease",
+                  backgroundColor: "var(--p-color-bg-surface-hover)"
+                }}
+              >
+                <s-stack direction="block" gap="tight" align="center">
+                  <div style={{ fontSize: "48px", lineHeight: "1" }}>📊</div>
+                  <s-heading>Import History</s-heading>
+                  <s-paragraph>
+                    <s-text tone="subdued">View all import batches and their status</s-text>
+                  </s-paragraph>
+                </s-stack>
+              </s-box>
+            </Link>
             <Link to="/app/templates" style={{ textDecoration: "none", flex: 1 }}>
               <s-box
                 padding="base"
@@ -131,6 +152,9 @@ export default function Dashboard() {
                 </s-stack>
               </s-box>
             </Link>
+          </s-stack>
+          {/* Third Row */}
+          <s-stack direction="inline" gap="base">
             <Link to="/app/images" style={{ textDecoration: "none", flex: 1 }}>
               <s-box
                 padding="base"
@@ -148,6 +172,27 @@ export default function Dashboard() {
                   <s-heading>AI Images</s-heading>
                   <s-paragraph>
                     <s-text tone="subdued">Generate and enhance product images with AI</s-text>
+                  </s-paragraph>
+                </s-stack>
+              </s-box>
+            </Link>
+            <Link to="/app/settings" style={{ textDecoration: "none", flex: 1 }}>
+              <s-box
+                padding="base"
+                borderWidth="base"
+                borderRadius="base"
+                style={{
+                  cursor: "pointer",
+                  textAlign: "center",
+                  transition: "all 0.2s ease",
+                  backgroundColor: "var(--p-color-bg-surface-hover)"
+                }}
+              >
+                <s-stack direction="block" gap="tight" align="center">
+                  <div style={{ fontSize: "48px", lineHeight: "1" }}>⚙️</div>
+                  <s-heading>Settings</s-heading>
+                  <s-paragraph>
+                    <s-text tone="subdued">Configure default import settings</s-text>
                   </s-paragraph>
                 </s-stack>
               </s-box>

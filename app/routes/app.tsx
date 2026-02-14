@@ -21,6 +21,7 @@ export default function App() {
         <s-link href="/app/import">Import Products</s-link>
         <s-link href="/app/optimize">Optimize Products</s-link>
         <s-link href="/app/images">AI Images</s-link>
+        <s-link href="/app/batches">Import History</s-link>
         <s-link href="/app/templates">Templates</s-link>
         <s-link href="/app/settings">Settings</s-link>
       </s-app-nav>

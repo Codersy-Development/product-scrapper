@@ -6,6 +6,7 @@ export const PRODUCT_CREATE_MUTATION = `#graphql
         title
         handle
         status
+        tags
         variants(first: 100) {
           edges {
             node {
@@ -58,6 +59,9 @@ export const PRODUCT_VARIANT_BULK_UPDATE_MUTATION = `#graphql
         id
         price
         compareAtPrice
+        sku
+        weight
+        weightUnit
       }
       userErrors {
         field
@@ -227,6 +231,23 @@ export const PRODUCT_CREATE_MEDIA_MUTATION = `#graphql
         }
       }
       mediaUserErrors {
+        field
+        message
+      }
+    }
+  }
+`;
+
+export const PRODUCT_SET_MUTATION = `#graphql
+  mutation productSet($input: ProductSetInput!) {
+    productSet(input: $input) {
+      product {
+        id
+        title
+        handle
+        status
+      }
+      userErrors {
         field
         message
       }

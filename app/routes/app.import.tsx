@@ -4,7 +4,6 @@ import { useFetcher, useLoaderData } from "react-router";
 import { useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
-import { COLLECTIONS_QUERY } from "../lib/shopify-queries.server";
 import type {
   ScrapedProduct,
   PromptTemplate,
@@ -18,7 +17,7 @@ import {
 } from "../lib/types";
 
 export const loader = async ({ request, context }: LoaderFunctionArgs) => {
-  const { admin, session } = await authenticate.admin(request);
+  const { session } = await authenticate.admin(request);
   const db = context.cloudflare.env.DB;
 
   // Load templates
@@ -39,22 +38,6 @@ export const loader = async ({ request, context }: LoaderFunctionArgs) => {
     .bind(session.shop)
     .all();
 
-  // Load collections from Shopify
-  let collections: Array<{ id: string; title: string; handle: string }> = [];
-  try {
-    const response = await admin.graphql(COLLECTIONS_QUERY, {
-      variables: { first: 100 },
-    });
-    const data: any = await response.json();
-    collections = (data.data?.collections?.edges || []).map((edge: any) => ({
-      id: edge.node.id,
-      title: edge.node.title,
-      handle: edge.node.handle,
-    }));
-  } catch (error) {
-    console.error("Failed to load collections:", error);
-  }
-
   const settings: StoreSettings = settingsRow
     ? {
         ...(settingsRow as any),
@@ -73,7 +56,6 @@ export const loader = async ({ request, context }: LoaderFunctionArgs) => {
   return {
     templates: templatesResult.results as unknown as PromptTemplate[],
     settings,
-    collections,
     negativeWords: negativeWordsResult.results.map((r) => r.word as string),
   };
 };
@@ -87,7 +69,6 @@ export default function ImportProducts() {
   const {
     templates,
     settings: defaultSettings,
-    collections,
     negativeWords,
   } = useLoaderData<typeof loader>();
   const shopify = useAppBridge();
@@ -116,7 +97,7 @@ export default function ImportProducts() {
   // Settings (Step 3)
   const [titleTemplateId, setTitleTemplateId] = useState<string>("");
   const [descTemplateId, setDescTemplateId] = useState<string>("");
-  const [selectedCollections, setSelectedCollections] = useState<string[]>([]);
+  const [selectedCollections, setSelectedCollections] = useState<Array<{ id: string; title: string }>>([]);
   const [vendor, setVendor] = useState(defaultSettings.vendor);
   const [language, setLanguage] = useState(defaultSettings.language);
   const [region, setRegion] = useState(defaultSettings.region);
@@ -155,14 +136,15 @@ export default function ImportProducts() {
   const [inventoryPolicy, setInventoryPolicy] = useState(
     defaultSettings.inventory_policy,
   );
+  // Image enhancement disabled - requires Imagen 3 API
+  const enhanceImages = false;
+  const [optimizeContent, setOptimizeContent] = useState(false);
 
   // Fetchers
   const scrapeFetcher = useFetcher<ScrapeResult>();
-  const optimizeFetcher = useFetcher();
   const uploadFetcher = useFetcher();
 
   const isScrapingLoading = scrapeFetcher.state !== "idle";
-  const isOptimizing = optimizeFetcher.state !== "idle";
   const isUploading = uploadFetcher.state !== "idle";
 
   // Set default template on load (Fashion template if available)
@@ -198,20 +180,6 @@ export default function ImportProducts() {
     }
   }, [scrapeFetcher.data, shopify]);
 
-  // Handle optimize response
-  useEffect(() => {
-    if (optimizeFetcher.data) {
-      const data = optimizeFetcher.data as any;
-      if (data.products) {
-        setProducts(data.products);
-        shopify.toast.show("Products optimized with AI");
-        if (data.warnings?.length) {
-          console.warn("Optimization warnings:", data.warnings);
-        }
-      }
-    }
-  }, [optimizeFetcher.data, shopify]);
-
   // Handle upload response
   useEffect(() => {
     if (uploadFetcher.data) {
@@ -223,9 +191,12 @@ export default function ImportProducts() {
             isError: true,
           });
         }
-        setStep("input");
-        setProducts([]);
-        setUrls("");
+        // Reset to input after a brief delay to show the completion message
+        setTimeout(() => {
+          setStep("input");
+          setProducts([]);
+          setUrls("");
+        }, 3000);
       }
     }
   }, [uploadFetcher.data, shopify]);
@@ -271,25 +242,29 @@ export default function ImportProducts() {
     setSelectedIds(new Set());
   };
 
-  const handleOptimize = () => {
-    const selectedProducts = products.filter((p) =>
-      selectedIds.has(p.externalId),
-    );
-    optimizeFetcher.submit(
-      JSON.stringify({
-        products: selectedProducts,
-        titleTemplateId: titleTemplateId ? Number(titleTemplateId) : undefined,
-        descriptionTemplateId: descTemplateId
-          ? Number(descTemplateId)
-          : undefined,
-        optimizeAltText: altText,
-      }),
-      {
-        method: "POST",
-        action: "/app/api/optimize",
-        encType: "application/json",
-      },
-    );
+  const openCollectionPicker = async () => {
+    try {
+      const pickerResult = await shopify.resourcePicker({
+        type: "collection",
+        action: "select",
+        multiple: true,
+        selectionIds: selectedCollections.map((c) => ({ id: c.id })),
+      });
+
+      if (pickerResult) {
+        const selections = pickerResult.map((item: any) => ({
+          id: item.id,
+          title: item.title || "Untitled Collection",
+        }));
+        setSelectedCollections(selections);
+      }
+    } catch (error) {
+      console.error("Collection picker error:", error);
+    }
+  };
+
+  const removeCollection = (id: string) => {
+    setSelectedCollections((prev) => prev.filter((c) => c.id !== id));
   };
 
   const handleUpload = () => {
@@ -319,8 +294,13 @@ export default function ImportProducts() {
           variant_pricing: variantPricing,
           inventory_policy: inventoryPolicy,
         },
-        collectionIds: selectedCollections,
+        collectionIds: selectedCollections.map((c) => c.id),
         sourceUrls: urls.split("\n").filter(Boolean),
+        enhanceImages,
+        optimizeContent,
+        titleTemplateId: optimizeContent && titleTemplateId ? Number(titleTemplateId) : undefined,
+        descTemplateId: optimizeContent && descTemplateId ? Number(descTemplateId) : undefined,
+        negativeWords: negativeWords,
       }),
       {
         method: "POST",
@@ -352,14 +332,13 @@ export default function ImportProducts() {
                 >
                   {isCompleted ? "\u2713" : String(idx + 1)}
                 </s-badge>
-                <s-text
-                  fontWeight={isActive ? "semibold" : "regular"}
-                  tone={isActive ? undefined : "subdued"}
-                >
-                  {label}
+                <s-text>
+                  <span style={{ fontWeight: isActive ? "600" : "400" }}>
+                    {label}
+                  </span>
                 </s-text>
                 {idx < STEP_LABELS.length - 1 && (
-                  <s-text tone="subdued">&mdash;</s-text>
+                  <s-text>&mdash;</s-text>
                 )}
               </s-stack>
             );
@@ -390,11 +369,9 @@ export default function ImportProducts() {
                   cursor: "pointer",
                 }}
               >
-                <s-text fontWeight="semibold">Collection Import</s-text>
-                <div>
-                  <s-text variant="bodySm" tone="subdued">
-                    Import all products from a collection
-                  </s-text>
+                <s-text><span style={{ fontWeight: "600" }}>Collection Import</span></s-text>
+                <div style={{ fontSize: "13px", color: "#666", marginTop: "4px" }}>
+                  Import all products from a collection
                 </div>
               </div>
               <div
@@ -411,11 +388,9 @@ export default function ImportProducts() {
                   cursor: "pointer",
                 }}
               >
-                <s-text fontWeight="semibold">Product Import</s-text>
-                <div>
-                  <s-text variant="bodySm" tone="subdued">
-                    Import specific products
-                  </s-text>
+                <s-text><span style={{ fontWeight: "600" }}>Product Import</span></s-text>
+                <div style={{ fontSize: "13px", color: "#666", marginTop: "4px" }}>
+                  Import specific products
                 </div>
               </div>
             </s-stack>
@@ -664,54 +639,88 @@ export default function ImportProducts() {
                 <div style={{ fontSize: "13px", color: "#666", marginBottom: "8px" }}>
                   Select collections to assign products to
                 </div>
-                <s-box
-                  padding="tight"
-                  borderWidth="base"
-                  borderRadius="base"
-                  style={{
-                    maxHeight: "150px",
-                    overflow: "auto",
-                  }}
-                >
-                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                    {collections.map((c) => (
-                      <label key={c.id} style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer" }}>
-                        <input
-                          type="checkbox"
-                          checked={selectedCollections.includes(c.id)}
-                          onChange={(e) => {
-                            setSelectedCollections((prev) =>
-                              e.target.checked
-                                ? [...prev, c.id]
-                                : prev.filter((id) => id !== c.id)
-                            );
-                          }}
-                        />
-                        <span>{c.title}</span>
-                      </label>
-                    ))}
-                  </div>
-                </s-box>
+                <s-stack direction="block" gap="base">
+                  <s-button onClick={openCollectionPicker} variant="secondary">
+                    {selectedCollections.length > 0 ? "Change Collections" : "Select Collections"}
+                  </s-button>
+
+                  {selectedCollections.length > 0 && (
+                    <s-box
+                      padding="base"
+                      borderWidth="base"
+                      borderRadius="base"
+                    >
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+                        {selectedCollections.map((collection) => (
+                          <div
+                            key={collection.id}
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "6px",
+                              padding: "4px 10px",
+                              backgroundColor: "#f1f2f4",
+                              borderRadius: "16px",
+                              fontSize: "13px",
+                            }}
+                          >
+                            <span>{collection.title}</span>
+                            <button
+                              type="button"
+                              onClick={() => removeCollection(collection.id)}
+                              style={{
+                                background: "none",
+                                border: "none",
+                                cursor: "pointer",
+                                color: "#666",
+                                padding: "0",
+                                display: "flex",
+                                alignItems: "center",
+                                fontSize: "16px",
+                                lineHeight: "1",
+                              }}
+                              aria-label={`Remove ${collection.title}`}
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </s-box>
+                  )}
+                </s-stack>
               </div>
 
-              {isOptimizing ? (
-                <s-banner tone="info">
-                  <s-stack direction="block" gap="tight">
-                    <s-text fontWeight="semibold">
-                      Optimizing products with AI...
-                    </s-text>
-                    <s-progress-bar />
-                    <s-text tone="subdued">
-                      This may take a moment depending on the number of
-                      products.
-                    </s-text>
-                  </s-stack>
-                </s-banner>
-              ) : (
-                <s-button onClick={handleOptimize} variant="primary">
-                  Optimize with AI
-                </s-button>
-              )}
+              <div>
+                <div style={{ fontWeight: "600", marginBottom: "12px" }}>AI Optimization</div>
+                <s-stack direction="block" gap="base">
+                  <label style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <input
+                      type="checkbox"
+                      checked={optimizeContent}
+                      onChange={(e) => setOptimizeContent(e.target.checked)}
+                    />
+                    <span>✨ Optimize product titles & descriptions with AI</span>
+                  </label>
+                  <div style={{ marginLeft: "32px", fontSize: "13px", color: "#666" }}>
+                    Uses selected templates to optimize product content for SEO and conversions
+                  </div>
+
+                  {/* Image enhancement temporarily disabled - requires Imagen 3 API
+                  <label style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <input
+                      type="checkbox"
+                      checked={enhanceImages}
+                      onChange={(e) => setEnhanceImages(e.target.checked)}
+                    />
+                    <span>🎨 Enhance product images with AI (experimental)</span>
+                  </label>
+                  <div style={{ marginLeft: "32px", fontSize: "13px", color: "#666" }}>
+                    Automatically improve images: hero image gets clean white background, additional images become lifestyle-focused
+                  </div>
+                  */}
+                </s-stack>
+              </div>
             </s-stack>
           </s-section>
 
@@ -915,17 +924,6 @@ export default function ImportProducts() {
                 />
                 <span>Use Same Price for All Variants</span>
               </label>
-              <label style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <input
-                  type="checkbox"
-                  checked={false}
-                  onChange={(e) => {/* TODO: AI image improvement */}}
-                />
-                <span>🎨 Enhance Product Images with AI (experimental)</span>
-              </label>
-              <div style={{ marginLeft: "32px", fontSize: "13px", color: "#666" }}>
-                Automatically improve competitor images using AI before importing
-              </div>
             </s-stack>
           </s-section>
 
@@ -949,19 +947,58 @@ export default function ImportProducts() {
       )}
 
       {step === "uploading" && (
-        <s-section>
-          <s-box padding="extraLoose" style={{ textAlign: "center" }}>
-            <s-stack direction="block" gap="base" align="center">
-              <s-heading>Uploading products to Shopify...</s-heading>
-              <s-progress-bar />
-              <s-paragraph>
-                Please wait while we create {selectedIds.size} products in your
-                store. This may take a few minutes for large batches.
-              </s-paragraph>
-              <s-badge tone="info">Processing</s-badge>
-            </s-stack>
-          </s-box>
-        </s-section>
+        <>
+          {!uploadFetcher.data && (
+            <s-section>
+              <s-banner tone="info">
+                <s-stack direction="block" gap="base">
+                  <s-heading>Import batch scheduled</s-heading>
+                  <s-text>
+                    Your import of {selectedIds.size} products has been scheduled and is now processing.
+                    {optimizeContent && " AI optimization is enabled and will enhance titles, descriptions, and alt text."}
+                  </s-text>
+                  <div style={{
+                    padding: "16px",
+                    background: "var(--p-color-bg-surface-secondary)",
+                    borderRadius: "8px",
+                    textAlign: "center"
+                  }}>
+                    <s-badge tone="info">Processing...</s-badge>
+                  </div>
+                  <s-text>
+                    You can safely leave this page. Visit the{" "}
+                    <a href="/app/batches" style={{ color: "var(--p-color-text-interactive)", textDecoration: "underline" }}>
+                      Import History
+                    </a>
+                    {" "}page to track progress and view results.
+                  </s-text>
+                </s-stack>
+              </s-banner>
+            </s-section>
+          )}
+
+          {uploadFetcher.data && (
+            <s-section>
+              <s-banner tone="success">
+                <s-stack direction="block" gap="base">
+                  <s-heading>Import completed!</s-heading>
+                  <s-text>
+                    Successfully imported {(uploadFetcher.data as any).imported} out of {(uploadFetcher.data as any).total} products.
+                    {(uploadFetcher.data as any).failed > 0 && ` ${(uploadFetcher.data as any).failed} products failed to import.`}
+                  </s-text>
+                  <s-text>
+                    Batch ID: #{(uploadFetcher.data as any).batchId}
+                  </s-text>
+                  <div>
+                    <s-button onClick={() => window.location.href = `/app/batches/${(uploadFetcher.data as any).batchId}`} variant="primary">
+                      View Import Details
+                    </s-button>
+                  </div>
+                </s-stack>
+              </s-banner>
+            </s-section>
+          )}
+        </>
       )}
     </s-page>
   );
